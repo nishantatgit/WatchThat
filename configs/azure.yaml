@@ -1,10 +1,11 @@
 azure:
-  subscription_id: null
-  resource_group: null
+  subscription_id: 70b4b1fd-03a3-4a87-b662-2742346c740c
+  resource_group: rg-representation-learning-dev
   location: northeurope
 
 storage:
-  account_name: null
+  account_name: reprlearnnishantdev
+  account_url: https://reprlearnnishantdev.blob.core.windows.net
   raw_container: raw-images
   quarantine_container: quarantined-images
   accepted_container: accepted-images
