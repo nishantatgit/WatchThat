@@ -59,9 +59,6 @@ class LocalImageStore:
         if not image_id.strip():
             raise ValueError("image_id cannot be empty")
 
-        if not content:
-            raise ValueError("Cannot store empty content")
-
         normalized_extension = extension.lower().lstrip(".")
 
         if not normalized_extension.isalnum():
@@ -127,9 +124,6 @@ class AzureBlobImageStore:
     ) -> str:
         if not image_id.strip():
             raise ValueError("image_id cannot be empty")
-
-        if not content:
-            raise ValueError("Cannot store empty content")
 
         normalized_extension = extension.lower().lstrip(".")
 
