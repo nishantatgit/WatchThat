@@ -5,7 +5,6 @@ from typing import Any
 
 import yaml
 
-
 @dataclass(frozen=True, slots=True)
 class AzureSettings:
     subscription_id: str
@@ -17,15 +16,24 @@ class AzureSettings:
 class StorageSettings:
     account_name: str
     account_url: str
+    table_endpoint: str
+    metadata_table: str
     raw_container: str
     quarantine_container: str
     accepted_container: str
 
+@dataclass(frozen=True, slots=True)
+class MessagingSettings:
+    fully_qualified_namespace: str
+    ingestion_queue: str
 
 @dataclass(frozen=True, slots=True)
 class InfrastructureConfig:
     azure: AzureSettings
     storage: StorageSettings
+    messaging: MessagingSettings
+
+
 
 
 def load_infrastructure_config(
@@ -46,6 +54,8 @@ def load_infrastructure_config(
 
     azure = _required_section(raw_config, "azure")
     storage = _required_section(raw_config, "storage")
+    messaging = _required_section(raw_config, "messaging")
+
 
     return InfrastructureConfig(
         azure=AzureSettings(
@@ -64,6 +74,12 @@ def load_infrastructure_config(
             account_url=_required_string(
                 storage, "account_url", "storage"
             ),
+            table_endpoint=_required_string(
+                storage, "table_endpoint", "storage"
+            ),
+            metadata_table=_required_string(
+                storage, "metadata_table", "storage"
+            ),
             raw_container=_required_string(
                 storage, "raw_container", "storage"
             ),
@@ -74,7 +90,19 @@ def load_infrastructure_config(
                 storage, "accepted_container", "storage"
             ),
         ),
-    )
+        messaging=MessagingSettings(
+            fully_qualified_namespace=_required_string(
+            messaging,
+            "fully_qualified_namespace",
+            "messaging",
+        ),
+        ingestion_queue=_required_string(
+            messaging,
+            "ingestion_queue",
+            "messaging",
+        ),
+    ),
+)
 
 
 def _required_section(

@@ -6,6 +6,8 @@ azure:
 storage:
   account_name: reprlearnnishantdev
   account_url: https://reprlearnnishantdev.blob.core.windows.net
+  table_endpoint: https://reprlearnnishantdev.table.core.windows.net
+  metadata_table: imagemetadata
   raw_container: raw-images
   quarantine_container: quarantined-images
   accepted_container: accepted-images
@@ -29,3 +31,7 @@ deployment:
   container_registry_name: null
   container_app_environment: image-platform-environment
   inference_app_name: image-inference-api
+
+messaging:
+  fully_qualified_namespace: sb-reprlearn-nishant-dev.servicebus.windows.net
+  ingestion_queue: image-ingestion
