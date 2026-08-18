@@ -1,0 +1,21 @@
+user_uploads:
+  enabled: true
+  process_immediately: true
+  maximum_file_size_mb: 10
+
+scraping:
+  enabled: true
+  schedule: "0 2 * * *"
+  quarantine_by_default: true
+
+validation:
+  supported_formats:
+    - jpg
+    - jpeg
+    - png
+    - webp
+  minimum_width: 128
+  minimum_height: 128
+  reject_corrupt_images: true
+  exact_deduplication: true
+  perceptual_deduplication: true

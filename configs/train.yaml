@@ -1,0 +1,28 @@
+project:
+  name: image-representation-learning
+  experiment_name: contrastive-learning
+
+data:
+  train_directory: data/train
+  validation_directory: data/validation
+  image_size: 224
+  batch_size: 128
+  num_workers: 4
+
+model:
+  input_channels: 3
+  embedding_dimension: 256
+  projection_dimension: 128
+  architecture_version: cnn-v1
+
+training:
+  epochs: 100
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  temperature: 0.2
+  seed: 42
+
+checkpointing:
+  output_directory: outputs
+  save_every_epochs: 5
+  resume_from: null

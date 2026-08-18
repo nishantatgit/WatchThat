@@ -1,0 +1,18 @@
+api:
+  host: "0.0.0.0"
+  port: 8000
+  maximum_batch_size: 32
+  request_timeout_seconds: 30
+
+latency_targets_ms:
+  embedding_p95: 500
+  vector_search_p95: 100
+  end_to_end_p95: 700
+
+model:
+  embedding_dimension: 256
+  active_version: null
+
+vector_search:
+  number_of_results: 10
+  similarity_metric: cosine

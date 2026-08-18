@@ -1,0 +1,14 @@
+evaluation_schedule: "0 4 * * *"
+
+policy:
+  maximum_interval_days: 7
+  minimum_new_images: 10000
+  minimum_dataset_growth_ratio: 0.10
+  trigger_on_data_drift: true
+  trigger_on_quality_regression: true
+
+promotion:
+  require_improvement: true
+  require_no_metric_regression: true
+  use_canary_deployment: true
+  backfill_embeddings_before_promotion: true

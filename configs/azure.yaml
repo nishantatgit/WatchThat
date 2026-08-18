@@ -1,0 +1,30 @@
+azure:
+  subscription_id: null
+  resource_group: null
+  location: northeurope
+
+storage:
+  account_name: null
+  raw_container: raw-images
+  quarantine_container: quarantined-images
+  accepted_container: accepted-images
+
+machine_learning:
+  workspace_name: null
+  compute_cluster_name: gpu-cluster
+  vm_size: Standard_NC4as_T4_v3
+  registered_model_name: image-encoder
+
+vector_store:
+  search_service_name: null
+  active_index_alias: image-embeddings-active
+
+feature_store:
+  name: image-feature-store
+  offline_store: adls
+  online_store: managed_redis
+
+deployment:
+  container_registry_name: null
+  container_app_environment: image-platform-environment
+  inference_app_name: image-inference-api

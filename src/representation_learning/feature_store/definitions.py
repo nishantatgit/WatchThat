@@ -1,0 +1,1 @@
+"""Versioned image-feature definitions."""
