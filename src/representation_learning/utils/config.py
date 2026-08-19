@@ -39,6 +39,74 @@ class InfrastructureConfig:
     messaging: MessagingSettings
 
 
+@dataclass(frozen=True, slots=True)
+class TrainingDataSettings:
+    manifest_path: str | None
+    image_mount_directory: str | None
+    image_size: int
+    batch_size: int
+    num_workers: int
+    split_seed: str
+    train_ratio: float
+    validation_ratio: float
+    test_ratio: float
+
+    def __post_init__(self) -> None:
+        if self.image_size <= 0:
+            raise ValueError("image_size must be positive")
+
+        if self.batch_size < 2:
+            raise ValueError("batch_size must be at least 2")
+
+        if self.num_workers < 0:
+            raise ValueError("num_workers cannot be negative")
+
+        ratio_sum = self.train_ratio + self.validation_ratio + self.test_ratio
+
+        if abs(ratio_sum - 1.0) > 1e-9:
+            raise ValueError("Dataset split ratios must add up to 1")
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingModelSettings:
+    input_channels: int
+    embedding_dimension: int
+    projection_dimension: int
+    architecture_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class OptimizationSettings:
+    maximum_epochs: int
+    learning_rate: float
+    weight_decay: float
+    temperature: float
+    seed: int
+
+
+@dataclass(frozen=True, slots=True)
+class EarlyStoppingSettings:
+    patience: int
+    minimum_improvement: float
+
+
+@dataclass(frozen=True, slots=True)
+class CheckpointSettings:
+    output_directory: str
+    resume_from: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingRunConfig:
+    project_name: str
+    experiment_name: str
+    data: TrainingDataSettings
+    model: TrainingModelSettings
+    training: OptimizationSettings
+    early_stopping: EarlyStoppingSettings
+    checkpointing: CheckpointSettings
+
+
 def load_infrastructure_config(
     path: str | Path = "configs/azure.yaml",
 ) -> InfrastructureConfig:
@@ -96,6 +164,87 @@ def load_infrastructure_config(
     )
 
 
+def load_training_config(
+    path: str | Path = "configs/train.yaml",
+) -> TrainingRunConfig:
+    config_path = Path(path)
+
+    if not config_path.is_file():
+        raise FileNotFoundError(f"Training configuration does not exist: {config_path}")
+
+    with config_path.open(encoding="utf-8") as config_file:
+        raw_config = yaml.safe_load(config_file)
+
+    if not isinstance(raw_config, dict):
+        raise TypeError("Training configuration root must be a mapping")
+
+    project = _required_section(raw_config, "project")
+    data = _required_section(raw_config, "data")
+    model = _required_section(raw_config, "model")
+    training = _required_section(raw_config, "training")
+    early_stopping = _required_section(
+        raw_config,
+        "early_stopping",
+    )
+    checkpointing = _required_section(
+        raw_config,
+        "checkpointing",
+    )
+
+    return TrainingRunConfig(
+        project_name=_required_string(project, "name", "project"),
+        experiment_name=_required_string(project, "experiment_name", "project"),
+        data=TrainingDataSettings(
+            manifest_path=_optional_string(data, "manifest_path", "data"),
+            image_mount_directory=_optional_string(
+                data, "image_mount_directory", "data"
+            ),
+            image_size=_required_int(data, "image_size", "data"),
+            batch_size=_required_int(data, "batch_size", "data"),
+            num_workers=_required_int(data, "num_workers", "data"),
+            split_seed=_required_string(data, "split_seed", "data"),
+            train_ratio=_required_float(data, "train_ratio", "data"),
+            validation_ratio=_required_float(data, "validation_ratio", "data"),
+            test_ratio=_required_float(data, "test_ratio", "data"),
+        ),
+        model=TrainingModelSettings(
+            input_channels=_required_int(model, "input_channels", "model"),
+            embedding_dimension=_required_int(model, "embedding_dimension", "model"),
+            projection_dimension=_required_int(model, "projection_dimension", "model"),
+            architecture_version=_required_string(
+                model, "architecture_version", "model"
+            ),
+        ),
+        training=OptimizationSettings(
+            maximum_epochs=_required_int(training, "maximum_epochs", "training"),
+            learning_rate=_required_float(training, "learning_rate", "training"),
+            weight_decay=_required_float(training, "weight_decay", "training"),
+            temperature=_required_float(training, "temperature", "training"),
+            seed=_required_int(training, "seed", "training"),
+        ),
+        early_stopping=EarlyStoppingSettings(
+            patience=_required_int(early_stopping, "patience", "early_stopping"),
+            minimum_improvement=_required_float(
+                early_stopping,
+                "minimum_improvement",
+                "early_stopping",
+            ),
+        ),
+        checkpointing=CheckpointSettings(
+            output_directory=_required_string(
+                checkpointing,
+                "output_directory",
+                "checkpointing",
+            ),
+            resume_from=_optional_string(
+                checkpointing,
+                "resume_from",
+                "checkpointing",
+            ),
+        ),
+    )
+
+
 def _required_section(
     config: dict[str, Any],
     section_name: str,
@@ -119,3 +268,45 @@ def _required_string(
         raise ValueError(f"Missing configuration value: {section_name}.{key}")
 
     return value
+
+
+def _optional_string(
+    section: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> str | None:
+    value = section.get(key)
+
+    if value is None:
+        return None
+
+    if not isinstance(value, str) or not value.strip():
+        raise TypeError(f"{section_name}.{key} must be a string or null")
+
+    return value
+
+
+def _required_int(
+    section: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> int:
+    value = section.get(key)
+
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError(f"{section_name}.{key} must be an integer")
+
+    return value
+
+
+def _required_float(
+    section: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> float:
+    value = section.get(key)
+
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise TypeError(f"{section_name}.{key} must be numeric")
+
+    return float(value)
