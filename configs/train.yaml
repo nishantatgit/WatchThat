@@ -3,26 +3,33 @@ project:
   experiment_name: contrastive-learning
 
 data:
-  train_directory: data/train
-  validation_directory: data/validation
+  manifest_path: null
+  image_mount_directory: null
   image_size: 224
   batch_size: 128
   num_workers: 4
+  split_seed: representation-learning-v1
+  train_ratio: 0.80
+  validation_ratio: 0.10
+  test_ratio: 0.10
 
 model:
   input_channels: 3
-  embedding_dimension: 256
+  embedding_dimension: 512
   projection_dimension: 128
   architecture_version: cnn-v1
 
 training:
-  epochs: 100
+  maximum_epochs: 100
   learning_rate: 0.0003
   weight_decay: 0.0001
   temperature: 0.2
   seed: 42
 
+early_stopping:
+  patience: 10
+  minimum_improvement: 0.001
+
 checkpointing:
   output_directory: outputs
-  save_every_epochs: 5
   resume_from: null
