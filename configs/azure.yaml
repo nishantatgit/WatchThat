@@ -11,6 +11,7 @@ storage:
   raw_container: raw-images
   quarantine_container: quarantined-images
   accepted_container: accepted-images
+  dataset_manifest_container: dataset-manifests
 
 machine_learning:
   workspace_name: null

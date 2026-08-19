@@ -31,6 +31,9 @@ class MetadataStore(Protocol):
     def find_by_checksum(self, checksum: str) -> ImageRecord | None:
         ...
 
+    def list_all(self) -> list[ImageRecord]:
+        ...
+
 
 class InMemoryMetadataStore:
     def __init__(self) -> None:

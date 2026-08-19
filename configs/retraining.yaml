@@ -1,11 +1,32 @@
 evaluation_schedule: "0 4 * * *"
 
 policy:
-  maximum_interval_days: 7
-  minimum_new_images: 10000
-  minimum_dataset_growth_ratio: 0.10
-  trigger_on_data_drift: true
-  trigger_on_quality_regression: true
+  cooldown_days: 3
+
+  schedule_trigger:
+    enabled: true
+    maximum_interval_days: 30
+
+  volume_trigger:
+    enabled: true
+    minimum_new_images: 10000
+    minimum_dataset_growth_ratio: 0.10
+    require_both_thresholds: true
+
+  drift_trigger:
+    enabled: true
+    metric: mmd
+    threshold_standard_deviations: 3.0
+    minimum_consecutive_windows: 3
+
+training_mode:
+  schedule_trigger: full
+  volume_trigger: incremental
+  drift_trigger: incremental
+
+incremental_training:
+  include_all_new_images: true
+  historical_replay_ratio: 0.50
 
 promotion:
   require_improvement: true

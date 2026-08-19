@@ -21,6 +21,7 @@ class StorageSettings:
     raw_container: str
     quarantine_container: str
     accepted_container: str
+    dataset_manifest_container: str
 
 @dataclass(frozen=True, slots=True)
 class MessagingSettings:
@@ -88,6 +89,11 @@ def load_infrastructure_config(
             ),
             accepted_container=_required_string(
                 storage, "accepted_container", "storage"
+            ),
+            dataset_manifest_container=_required_string(
+                storage,
+                "dataset_manifest_container",
+                "storage",
             ),
         ),
         messaging=MessagingSettings(
