@@ -1,5 +1,6 @@
 """PyTorch datasets for unlabelled image training."""
 
+import json
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import unquote, urlparse
@@ -73,3 +74,53 @@ class ContrastiveImageDataset(Dataset[tuple[torch.Tensor, torch.Tensor, str]]):
         first_view, second_view = self._transform(image)
 
         return first_view, second_view, item.image_id
+
+
+def load_dataset_manifest(
+    manifest_path: str | Path,
+) -> tuple[DatasetManifestItem, ...]:
+    path = Path(manifest_path)
+
+    if not path.is_file():
+        raise FileNotFoundError(f"Dataset manifest does not exist: {path}")
+
+    items: list[DatasetManifestItem] = []
+
+    with path.open(encoding="utf-8") as manifest:
+        for line_number, line in enumerate(manifest, start=1):
+            stripped_line = line.strip()
+
+            if not stripped_line:
+                continue
+
+            try:
+                data = json.loads(stripped_line)
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    f"Invalid JSON on manifest line {line_number}"
+                ) from error
+
+            if not isinstance(data, dict):
+                raise TypeError(
+                    f"Manifest line {line_number} must contain a JSON object"
+                )
+
+            try:
+                item = DatasetManifestItem(
+                    image_id=str(data["image_id"]),
+                    storage_uri=str(data["storage_uri"]),
+                    checksum=str(data["checksum"]),
+                    content_type=str(data["content_type"]),
+                    size_bytes=int(data["size_bytes"]),
+                )
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError(
+                    f"Invalid dataset item on manifest line {line_number}"
+                ) from error
+
+            items.append(item)
+
+    if not items:
+        raise ValueError("Dataset manifest does not contain any images")
+
+    return tuple(items)
