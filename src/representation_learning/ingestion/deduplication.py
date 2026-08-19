@@ -14,11 +14,9 @@ def calculate_checksum(image_bytes: bytes) -> str:
 
 
 class ChecksumRegistry(Protocol):
-    def contains(self, checksum: str) -> bool:
-        ...
+    def contains(self, checksum: str) -> bool: ...
 
-    def add(self, checksum: str, image_id: str) -> None:
-        ...
+    def add(self, checksum: str, image_id: str) -> None: ...
 
 
 class InMemoryChecksumRegistry:

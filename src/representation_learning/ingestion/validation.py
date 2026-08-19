@@ -6,7 +6,6 @@ from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
 
-
 _FORMAT_TO_CONTENT_TYPE = {
     "JPEG": "image/jpeg",
     "PNG": "image/png",
@@ -35,9 +34,7 @@ class ImageValidator:
         self.max_size_bytes = max_size_bytes
         self.min_width = min_width
         self.min_height = min_height
-        self.allowed_formats = allowed_formats or frozenset(
-            _FORMAT_TO_CONTENT_TYPE
-        )
+        self.allowed_formats = allowed_formats or frozenset(_FORMAT_TO_CONTENT_TYPE)
 
     def validate(self, image_bytes: bytes) -> ImageValidationResult:
         if not image_bytes:

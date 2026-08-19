@@ -1,18 +1,18 @@
 """Immutable and reproducible training dataset snapshots."""
+
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import sha256
-
-from representation_learning.domain import ImageStatus
-from representation_learning.storage.metadata_store import MetadataStore
-
 from typing import Protocol
 
 from azure.core.credentials import TokenCredential
 from azure.core.exceptions import ResourceExistsError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
+
+from representation_learning.domain import ImageStatus
+from representation_learning.storage.metadata_store import MetadataStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,9 +68,7 @@ class DatasetSnapshotBuilder:
         ]
 
         if not records:
-            raise ValueError(
-                "Cannot create a dataset snapshot without accepted images"
-            )
+            raise ValueError("Cannot create a dataset snapshot without accepted images")
 
         items = tuple(
             DatasetManifestItem(
@@ -99,13 +97,13 @@ class DatasetSnapshotBuilder:
 
         return DatasetSnapshot(
             snapshot_id=snapshot_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             items=items,
         )
 
+
 class DatasetSnapshotStore(Protocol):
-    def save(self, snapshot: DatasetSnapshot) -> str:
-        ...
+    def save(self, snapshot: DatasetSnapshot) -> str: ...
 
 
 class AzureBlobDatasetSnapshotStore:
@@ -123,9 +121,7 @@ class AzureBlobDatasetSnapshotStore:
         self._container_name = container_name
 
     def save(self, snapshot: DatasetSnapshot) -> str:
-        blob_name = (
-            f"snapshots/{snapshot.snapshot_id}/manifest.jsonl"
-        )
+        blob_name = f"snapshots/{snapshot.snapshot_id}/manifest.jsonl"
 
         blob_client = self._blob_service.get_blob_client(
             container=self._container_name,
@@ -138,9 +134,7 @@ class AzureBlobDatasetSnapshotStore:
             blob_client.upload_blob(
                 manifest,
                 overwrite=False,
-                content_settings=ContentSettings(
-                    content_type="application/x-ndjson"
-                ),
+                content_settings=ContentSettings(content_type="application/x-ndjson"),
                 metadata={
                     "snapshot_id": snapshot.snapshot_id,
                     "image_count": str(snapshot.image_count),
@@ -148,9 +142,7 @@ class AzureBlobDatasetSnapshotStore:
                 },
             )
         except ResourceExistsError:
-            existing_manifest = (
-                blob_client.download_blob().readall()
-            )
+            existing_manifest = blob_client.download_blob().readall()
 
             if existing_manifest != manifest:
                 raise RuntimeError(

@@ -18,6 +18,7 @@ from azure.storage.blob import (
     ContentSettings,
 )
 
+
 class StorageArea(StrEnum):
     RAW = "raw"
     ACCEPTED = "accepted"
@@ -35,11 +36,11 @@ class ImageStore(Protocol):
     ) -> str:
         """Store image bytes and return their storage URI."""
         ...
-    def read(self, storage_uri: str) -> bytes:
-        ...
 
-    def delete(self, storage_uri: str) -> None:
-        ...
+    def read(self, storage_uri: str) -> bytes: ...
+
+    def delete(self, storage_uri: str) -> None: ...
+
 
 class LocalImageStore:
     def __init__(self, root_directory: str | Path = "data") -> None:
@@ -64,9 +65,7 @@ class LocalImageStore:
         if not normalized_extension.isalnum():
             raise ValueError(f"Invalid file extension: {extension}")
 
-        file_path = self._directory_for(area) / (
-            f"{image_id}.{normalized_extension}"
-        )
+        file_path = self._directory_for(area) / (f"{image_id}.{normalized_extension}")
 
         # "xb" prevents accidentally overwriting an existing image.
         with file_path.open("xb") as image_file:

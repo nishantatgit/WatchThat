@@ -35,9 +35,7 @@ def test_valid_raw_image_is_accepted(tmp_path: Path) -> None:
 
     handler = BlobCreatedEventHandler(
         validator=ImageValidator(),
-        deduplicator=ImageDeduplicator(
-            InMemoryChecksumRegistry()
-        ),
+        deduplicator=ImageDeduplicator(InMemoryChecksumRegistry()),
         image_store=image_store,
         metadata_store=metadata_store,
     )
@@ -68,9 +66,7 @@ def test_invalid_raw_image_is_quarantined(tmp_path: Path) -> None:
 
     handler = BlobCreatedEventHandler(
         validator=ImageValidator(),
-        deduplicator=ImageDeduplicator(
-            InMemoryChecksumRegistry()
-        ),
+        deduplicator=ImageDeduplicator(InMemoryChecksumRegistry()),
         image_store=image_store,
         metadata_store=InMemoryMetadataStore(),
     )

@@ -13,7 +13,7 @@ Planned entities:
 # src/representation_learning/domain/entities.py
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 
@@ -86,5 +86,5 @@ class ImageRecord:
             height=height,
             size_bytes=size_bytes,
             status=status,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )

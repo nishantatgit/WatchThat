@@ -1,8 +1,8 @@
 """Persistent image metadata and processing-status storage."""
 # src/representation_learning/storage/metadata_store.py
 
-from typing import Protocol
 from datetime import datetime
+from typing import Protocol
 
 from azure.core.credentials import TokenCredential
 from azure.core.exceptions import (
@@ -18,21 +18,15 @@ from representation_learning.domain.entities import (
     ImageStatus,
 )
 
-from representation_learning.domain.entities import ImageRecord
-
 
 class MetadataStore(Protocol):
-    def save(self, record: ImageRecord) -> None:
-        ...
+    def save(self, record: ImageRecord) -> None: ...
 
-    def get(self, image_id: str) -> ImageRecord | None:
-        ...
+    def get(self, image_id: str) -> ImageRecord | None: ...
 
-    def find_by_checksum(self, checksum: str) -> ImageRecord | None:
-        ...
+    def find_by_checksum(self, checksum: str) -> ImageRecord | None: ...
 
-    def list_all(self) -> list[ImageRecord]:
-        ...
+    def list_all(self) -> list[ImageRecord]: ...
 
 
 class InMemoryMetadataStore:
@@ -42,16 +36,13 @@ class InMemoryMetadataStore:
 
     def save(self, record: ImageRecord) -> None:
         if record.image_id in self._records_by_id:
-            raise ValueError(
-                f"Image metadata already exists: {record.image_id}"
-            )
+            raise ValueError(f"Image metadata already exists: {record.image_id}")
 
         existing = self.find_by_checksum(record.checksum)
 
         if existing is not None:
             raise ValueError(
-                "An image with the same checksum already exists: "
-                f"{existing.image_id}"
+                f"An image with the same checksum already exists: {existing.image_id}"
             )
 
         self._records_by_id[record.image_id] = record
@@ -70,6 +61,7 @@ class InMemoryMetadataStore:
 
     def list_all(self) -> list[ImageRecord]:
         return list(self._records_by_id.values())
+
 
 class AzureTableMetadataStore:
     def __init__(
@@ -105,13 +97,10 @@ class AzureTableMetadataStore:
             self._table.create_entity(entity=entity)
         except ResourceExistsError as error:
             existing = self.find_by_checksum(record.checksum)
-            existing_id = (
-                existing.image_id if existing is not None else "unknown"
-            )
+            existing_id = existing.image_id if existing is not None else "unknown"
 
             raise ValueError(
-                "An image with the same checksum already exists: "
-                f"{existing_id}"
+                f"An image with the same checksum already exists: {existing_id}"
             ) from error
 
     def get(self, image_id: str) -> ImageRecord | None:
@@ -139,10 +128,7 @@ class AzureTableMetadataStore:
         return self._to_record(entity)
 
     def list_all(self) -> list[ImageRecord]:
-        return [
-            self._to_record(entity)
-            for entity in self._table.list_entities()
-        ]
+        return [self._to_record(entity) for entity in self._table.list_entities()]
 
     # These methods also make this store satisfy ChecksumRegistry.
 
@@ -157,9 +143,7 @@ class AzureTableMetadataStore:
         record = self.find_by_checksum(checksum)
 
         if record is None:
-            raise ValueError(
-                "Metadata must be saved before registering its checksum"
-            )
+            raise ValueError("Metadata must be saved before registering its checksum")
 
         if record.image_id != image_id:
             raise ValueError(

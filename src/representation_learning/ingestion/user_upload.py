@@ -2,10 +2,7 @@
 # src/representation_learning/ingestion/user_upload.py
 
 from dataclasses import dataclass
-from pathlib import Path
-from uuid import uuid4
-
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -30,7 +27,6 @@ from representation_learning.ingestion.deduplication import ImageDeduplicator
 from representation_learning.ingestion.validation import ImageValidator
 from representation_learning.storage.image_store import ImageStore, StorageArea
 from representation_learning.storage.metadata_store import MetadataStore
-
 
 _CONTENT_TYPE_TO_EXTENSION = {
     "image/jpeg": "jpg",
@@ -120,9 +116,7 @@ class UserUploadIngestion:
         content_type = validation.content_type
 
         if content_type is None:
-            raise RuntimeError(
-                "Successful validation did not produce a content type"
-            )
+            raise RuntimeError("Successful validation did not produce a content type")
 
         extension = _CONTENT_TYPE_TO_EXTENSION[content_type]
 
@@ -172,11 +166,10 @@ class UserUploadIngestion:
     @staticmethod
     def _required_dimension(value: int | None, name: str) -> int:
         if value is None:
-            raise RuntimeError(
-                f"Successful validation did not produce {name}"
-            )
+            raise RuntimeError(f"Successful validation did not produce {name}")
 
         return value
+
 
 @dataclass(frozen=True, slots=True)
 class UploadGrant:
@@ -212,9 +205,7 @@ class DirectUploadService:
         extension = Path(original_filename).suffix.lower().lstrip(".")
 
         if extension not in self._ALLOWED_EXTENSIONS:
-            raise ValueError(
-                f"Unsupported file extension: {extension or '<none>'}"
-            )
+            raise ValueError(f"Unsupported file extension: {extension or '<none>'}")
 
         image_id = str(uuid4())
         blob_name = f"{image_id}.{extension}"
@@ -224,7 +215,7 @@ class DirectUploadService:
             blob=blob_name,
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expires_at = now + self._sas_lifetime
 
         # Start slightly in the past to tolerate clock differences.

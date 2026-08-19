@@ -15,7 +15,7 @@ Planned events:
 # src/representation_learning/domain/events.py
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from representation_learning.domain.entities import ImageSource
@@ -24,9 +24,7 @@ from representation_learning.domain.entities import ImageSource
 @dataclass(frozen=True, slots=True, kw_only=True)
 class DomainEvent:
     event_id: str = field(default_factory=lambda: str(uuid4()))
-    occurred_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    occurred_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

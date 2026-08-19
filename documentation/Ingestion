@@ -1,0 +1,12 @@
+flowchart TD
+    A["Receive image bytes"] --> B["Validate image"]
+    B -->|Invalid| C["Save to quarantine"]
+    C --> D["Emit quarantined event"]
+    B -->|Valid| E["Calculate checksum"]
+    E --> F{"Duplicate?"}
+    F -->|Yes| G["Return existing image ID"]
+    F -->|No| H["Save accepted image"]
+    H --> I["Create ImageRecord"]
+    I --> J["Store metadata"]
+    J --> K["Register checksum"]
+    K --> L["Emit accepted event"]

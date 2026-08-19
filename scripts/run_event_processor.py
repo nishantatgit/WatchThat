@@ -28,7 +28,6 @@ from representation_learning.utils.config import (
     load_infrastructure_config,
 )
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -53,13 +52,11 @@ def decode_event(
     # Event Grid sometimes represents a delivered batch as a list.
     if isinstance(payload, list):
         if len(payload) != 1:
-            raise ValueError(
-                "Expected exactly one Event Grid event per message"
-            )
+            raise ValueError("Expected exactly one Event Grid event per message")
         payload = payload[0]
 
     if not isinstance(payload, dict):
-        raise ValueError("Event Grid message must contain an object")
+        raise TypeError("Event Grid message must contain an object")
 
     return payload
 
@@ -73,7 +70,7 @@ def extract_blob_uri(event: Mapping[str, Any]) -> str:
     data = event.get("data")
 
     if not isinstance(data, Mapping):
-        raise ValueError("Event is missing its data object")
+        raise TypeError("Event is missing its data object")
 
     blob_uri = data.get("url")
 
@@ -103,8 +100,7 @@ def build_handler() -> tuple[
         container_names={
             StorageArea.RAW: config.storage.raw_container,
             StorageArea.ACCEPTED: config.storage.accepted_container,
-            StorageArea.QUARANTINE:
-                config.storage.quarantine_container,
+            StorageArea.QUARANTINE: config.storage.quarantine_container,
         },
     )
 
@@ -116,9 +112,7 @@ def build_handler() -> tuple[
     )
 
     service_bus = ServiceBusClient(
-        fully_qualified_namespace=(
-            config.messaging.fully_qualified_namespace
-        ),
+        fully_qualified_namespace=(config.messaging.fully_qualified_namespace),
         credential=credential,
     )
 
@@ -140,8 +134,7 @@ def process_message(
         receiver.complete_message(message)
 
         LOGGER.info(
-            "Processed image_id=%s accepted=%s quarantined=%s "
-            "duplicate=%s",
+            "Processed image_id=%s accepted=%s quarantined=%s duplicate=%s",
             result.image_id,
             result.accepted,
             result.quarantined,

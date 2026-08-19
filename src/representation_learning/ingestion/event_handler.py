@@ -1,4 +1,5 @@
 """Idempotent handler for Blob Storage and Event Grid events."""
+
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from urllib.parse import unquote, urlparse
@@ -31,10 +32,7 @@ class BlobProcessingResult:
 
     @property
     def quarantined(self) -> bool:
-        return any(
-            isinstance(event, ImageQuarantined)
-            for event in self.events
-        )
+        return any(isinstance(event, ImageQuarantined) for event in self.events)
 
     @property
     def is_duplicate(self) -> bool:
@@ -111,9 +109,7 @@ class BlobCreatedEventHandler:
             or validation.width is None
             or validation.height is None
         ):
-            raise RuntimeError(
-                "Successful validation returned incomplete metadata"
-            )
+            raise RuntimeError("Successful validation returned incomplete metadata")
 
         accepted_uri = self._image_store.save(
             image_id=image_id,
