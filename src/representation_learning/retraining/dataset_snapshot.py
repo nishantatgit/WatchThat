@@ -74,7 +74,7 @@ class DatasetSnapshotBuilder:
             DatasetManifestItem(
                 image_id=record.image_id,
                 storage_uri=record.storage_uri,
-                checksum=record.checksum,
+                checksum=record.accepted_checksum,
                 content_type=record.content_type,
                 size_bytes=record.size_bytes,
             )

@@ -90,7 +90,17 @@ class AzureTableMetadataStore:
             "SizeBytes": record.size_bytes,
             "Status": record.status.value,
             "CreatedAt": record.created_at,
+            "AcceptedChecksum": record.accepted_checksum,
         }
+
+        if record.source_page_url is not None:
+            entity["SourcePageUrl"] = record.source_page_url
+
+        if record.license_name is not None:
+            entity["LicenseName"] = record.license_name
+
+        if record.creator is not None:
+            entity["Creator"] = record.creator
 
         try:
             # create_entity fails if this checksum already exists.
