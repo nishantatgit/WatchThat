@@ -11,12 +11,16 @@ scraping:
   seed_urls:
     - "https://commons.wikimedia.org/wiki/Category:Birds"
 
+  discovery_source: "wikimedia"
+
+  wikimedia_categories:
+    - "Featured pictures of birds"
+
   allowed_page_hosts:
     - "commons.wikimedia.org"
 
   allowed_image_hosts:
     - "upload.wikimedia.org"
-    - "thumb.wikimedia.org"
 
   maximum_pages: 1
   maximum_depth: 0

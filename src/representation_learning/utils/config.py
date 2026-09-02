@@ -51,6 +51,8 @@ class ScrapingSettings:
     maximum_depth: int
     maximum_images_per_run: int
     maximum_image_size_mb: int
+    discovery_source: str
+    wikimedia_categories: tuple[str, ...]
 
     def __post_init__(self) -> None:
         if not self.seed_urls:
@@ -73,6 +75,23 @@ class ScrapingSettings:
 
         if self.maximum_image_size_mb <= 0:
             raise ValueError("maximum_image_size_mb must be positive")
+
+        if self.discovery_source not in {
+            "generic_web",
+            "wikimedia",
+        }:
+
+            raise ValueError(
+                "discovery_source must be generic_web or wikimedia"
+            )
+
+        if (
+            self.discovery_source == "wikimedia"
+            and not self.wikimedia_categories
+        ):
+            raise ValueError(
+                "At least one Wikimedia category is required"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,6 +281,16 @@ def load_scraping_config(
         maximum_image_size_mb=_required_int(
             scraping,
             "maximum_image_size_mb",
+            "scraping",
+        ),
+        discovery_source=_required_string(
+            scraping,
+            "discovery_source",
+            "scraping",
+        ),
+        wikimedia_categories=_required_string_tuple(
+            scraping,
+            "wikimedia_categories",
             "scraping",
         ),
     )
