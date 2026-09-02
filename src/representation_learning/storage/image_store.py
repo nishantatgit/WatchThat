@@ -122,10 +122,15 @@ class AzureBlobImageStore:
         if not account_url.strip():
             raise ValueError("account_url cannot be empty")
 
+        block_size = 4 * 1024 * 1024
+
         self._credential = credential or DefaultAzureCredential()
         self._blob_service = BlobServiceClient(
             account_url=account_url,
             credential=self._credential,
+            max_block_size=block_size,
+            connection_timeout=120,
+            read_timeout=120,
         )
         self._container_names = container_names or {
             StorageArea.RAW: "raw-images",

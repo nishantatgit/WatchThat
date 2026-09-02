@@ -53,6 +53,8 @@ class ScrapingSettings:
     maximum_image_size_mb: int
     discovery_source: str
     wikimedia_categories: tuple[str, ...]
+    require_license: bool
+    allowed_licenses: frozenset[str]
 
     def __post_init__(self) -> None:
         if not self.seed_urls:
@@ -80,18 +82,10 @@ class ScrapingSettings:
             "generic_web",
             "wikimedia",
         }:
+            raise ValueError("discovery_source must be generic_web or wikimedia")
 
-            raise ValueError(
-                "discovery_source must be generic_web or wikimedia"
-            )
-
-        if (
-            self.discovery_source == "wikimedia"
-            and not self.wikimedia_categories
-        ):
-            raise ValueError(
-                "At least one Wikimedia category is required"
-            )
+        if self.discovery_source == "wikimedia" and not self.wikimedia_categories:
+            raise ValueError("At least one Wikimedia category is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +114,9 @@ class TrainingDataSettings:
 
         if abs(ratio_sum - 1.0) > 1e-9:
             raise ValueError("Dataset split ratios must add up to 1")
+
+        if self.require_license and not self.allowed_licenses:
+            raise ValueError("At least one allowed licence is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +215,7 @@ def load_infrastructure_config(
         ),
     )
 
+
 def load_scraping_config(
     path: str | Path = "configs/ingestion.yaml",
 ) -> ScrapingSettings:
@@ -293,7 +291,20 @@ def load_scraping_config(
             "wikimedia_categories",
             "scraping",
         ),
+        require_license=_required_bool(
+            scraping,
+            "require_license",
+            "scraping",
+        ),
+        allowed_licenses=frozenset(
+            _required_string_tuple(
+                scraping,
+                "allowed_licenses",
+                "scraping",
+            )
+        ),
     )
+
 
 def load_training_config(
     path: str | Path = "configs/train.yaml",
@@ -442,6 +453,7 @@ def _required_float(
 
     return float(value)
 
+
 def _required_bool(
     section: dict[str, Any],
     key: str,
@@ -450,9 +462,7 @@ def _required_bool(
     value = section.get(key)
 
     if not isinstance(value, bool):
-        raise TypeError(
-            f"Configuration value {section_name}.{key} must be a boolean"
-        )
+        raise TypeError(f"Configuration value {section_name}.{key} must be a boolean")
 
     return value
 
@@ -466,14 +476,12 @@ def _required_string_tuple(
 
     if not isinstance(value, list) or not value:
         raise TypeError(
-            f"Configuration value {section_name}.{key} "
-            "must be a non-empty list"
+            f"Configuration value {section_name}.{key} must be a non-empty list"
         )
 
     if not all(isinstance(item, str) and item.strip() for item in value):
         raise TypeError(
-            f"Configuration value {section_name}.{key} "
-            "must contain non-empty strings"
+            f"Configuration value {section_name}.{key} must contain non-empty strings"
         )
 
     return tuple(item.strip() for item in value)

@@ -9,15 +9,15 @@ from azure.servicebus import (
     ServiceBusClient,
     ServiceBusReceivedMessage,
 )
-from representational_learning.src.representation_learning.ingestion.image_optimizer import (
-    ImageOptimizer,
-)
 
 from representation_learning.ingestion.deduplication import (
     ImageDeduplicator,
 )
 from representation_learning.ingestion.event_handler import (
     BlobCreatedEventHandler,
+)
+from representation_learning.ingestion.image_optimizer import (
+    ImageOptimizer,
 )
 from representation_learning.ingestion.validation import ImageValidator
 from representation_learning.storage.image_store import (
@@ -132,9 +132,16 @@ def process_message(
     receiver: Any,
     handler: BlobCreatedEventHandler,
 ) -> None:
+    LOGGER.info(
+        "Received message_id=%s delivery_count=%s",
+        message.message_id,
+        message.delivery_count,
+    )
     try:
         event = decode_event(message)
         raw_blob_uri = extract_blob_uri(event)
+
+        LOGGER.info("Processing raw blob: %s", raw_blob_uri)
 
         result = handler.handle(raw_blob_uri=raw_blob_uri)
 
@@ -182,10 +189,9 @@ def main() -> None:
 
             while True:
                 messages = receiver.receive_messages(
-                    max_message_count=10,
+                    max_message_count=1,
                     max_wait_time=5,
                 )
-
                 for message in messages:
                     process_message(
                         message=message,

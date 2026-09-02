@@ -22,6 +22,15 @@ scraping:
   allowed_image_hosts:
     - "upload.wikimedia.org"
 
+  require_license: true
+
+  allowed_licenses:
+    - "CC0"
+    - "CC BY 4.0"
+    - "CC BY-SA 4.0"
+    - "CC BY-SA 3.0"
+    - "Public domain"
+
   maximum_pages: 1
   maximum_depth: 0
   maximum_images_per_run: 5

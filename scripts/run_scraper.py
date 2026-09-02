@@ -16,6 +16,9 @@ from representation_learning.scraper.image_downloader import (
     ImageDownloader,
     RawImagePublisher,
 )
+from representation_learning.scraper.source_policy import (
+    ScrapingSourcePolicy,
+)
 from representation_learning.scraper.wikimedia import (
     WikimediaCommonsSource,
 )
@@ -95,10 +98,7 @@ def discover_generic_web_images(
         result = crawler.crawl(config.seed_urls)
 
         print(f"Pages downloaded: {result.pages_downloaded}")
-        print(
-            "Pages blocked by robots: "
-            f"{result.pages_blocked_by_robots}"
-        )
+        print(f"Pages blocked by robots: {result.pages_blocked_by_robots}")
         print(f"Page failures: {len(result.failures)}")
 
         return result.images[: config.maximum_images_per_run]
@@ -115,9 +115,7 @@ def discover_images(
     if config.discovery_source == "generic_web":
         return discover_generic_web_images(config)
 
-    raise ValueError(
-        f"Unsupported discovery source: {config.discovery_source}"
-    )
+    raise ValueError(f"Unsupported discovery source: {config.discovery_source}")
 
 
 def main() -> None:
@@ -139,20 +137,22 @@ def main() -> None:
     print(f"Discovery source: {scraping_config.discovery_source}")
     print(f"Image candidates: {len(candidates)}")
 
+    source_policy = ScrapingSourcePolicy(
+        allowed_source_hosts=scraping_config.allowed_page_hosts,
+        allowed_licenses=scraping_config.allowed_licenses,
+        require_license=scraping_config.require_license,
+    )
+
     image_downloader = ImageDownloader(
         allowed_hosts=scraping_config.allowed_image_hosts,
-        maximum_response_bytes=(
-            scraping_config.maximum_image_size_mb * 1024 * 1024
-        ),
+        maximum_response_bytes=(scraping_config.maximum_image_size_mb * 1024 * 1024),
     )
 
     image_store = AzureBlobImageStore(
         account_url=infrastructure_config.storage.account_url,
         container_names={
             StorageArea.RAW: infrastructure_config.storage.raw_container,
-            StorageArea.ACCEPTED: (
-                infrastructure_config.storage.accepted_container
-            ),
+            StorageArea.ACCEPTED: (infrastructure_config.storage.accepted_container),
             StorageArea.QUARANTINE: (
                 infrastructure_config.storage.quarantine_container
             ),
@@ -166,7 +166,15 @@ def main() -> None:
     download_failure_count = 0
 
     try:
+        policy_rejection_count = 0
         for candidate in candidates:
+            decision = source_policy.evaluate(candidate)
+
+            if not decision.allowed:
+                policy_rejection_count += 1
+                print(f"Rejected {candidate.title}: {decision.reason}")
+                continue
+
             try:
                 downloaded = image_downloader.download(candidate)
             except (httpx.HTTPError, ValueError) as error:

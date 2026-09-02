@@ -4,15 +4,14 @@ from dataclasses import dataclass
 from typing import ClassVar
 from urllib.parse import urljoin, urlsplit
 from uuid import uuid4
+
 import httpx
 
+from representation_learning.domain.entities import ImageSource
 from representation_learning.scraper.crawler import (
     ScrapedImageCandidate,
     normalize_web_url,
 )
-
-from representation_learning.domain.entities import ImageSource
-
 from representation_learning.storage.image_store import (
     ImageStore,
     StorageArea,
