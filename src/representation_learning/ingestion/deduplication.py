@@ -1,5 +1,4 @@
 """Exact hash and perceptual-hash image deduplication."""
-# src/representation_learning/ingestion/deduplication.py
 
 from dataclasses import dataclass
 from hashlib import sha256

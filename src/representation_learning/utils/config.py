@@ -40,6 +40,42 @@ class InfrastructureConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ScrapingSettings:
+    enabled: bool
+    schedule: str
+    quarantine_by_default: bool
+    seed_urls: tuple[str, ...]
+    allowed_page_hosts: frozenset[str]
+    allowed_image_hosts: frozenset[str]
+    maximum_pages: int
+    maximum_depth: int
+    maximum_images_per_run: int
+    maximum_image_size_mb: int
+
+    def __post_init__(self) -> None:
+        if not self.seed_urls:
+            raise ValueError("At least one scraper seed URL is required")
+
+        if not self.allowed_page_hosts:
+            raise ValueError("At least one page host must be allowed")
+
+        if not self.allowed_image_hosts:
+            raise ValueError("At least one image host must be allowed")
+
+        if self.maximum_pages <= 0:
+            raise ValueError("maximum_pages must be positive")
+
+        if self.maximum_depth < 0:
+            raise ValueError("maximum_depth cannot be negative")
+
+        if self.maximum_images_per_run <= 0:
+            raise ValueError("maximum_images_per_run must be positive")
+
+        if self.maximum_image_size_mb <= 0:
+            raise ValueError("maximum_image_size_mb must be positive")
+
+
+@dataclass(frozen=True, slots=True)
 class TrainingDataSettings:
     manifest_path: str | None
     image_mount_directory: str | None
@@ -163,6 +199,72 @@ def load_infrastructure_config(
         ),
     )
 
+def load_scraping_config(
+    path: str | Path = "configs/ingestion.yaml",
+) -> ScrapingSettings:
+    config_path = Path(path)
+
+    if not config_path.is_file():
+        raise FileNotFoundError(
+            f"Ingestion configuration does not exist: {config_path}"
+        )
+
+    with config_path.open(encoding="utf-8") as config_file:
+        raw_config = yaml.safe_load(config_file)
+
+    if not isinstance(raw_config, dict):
+        raise TypeError("Ingestion configuration root must be a mapping")
+
+    scraping = _required_section(raw_config, "scraping")
+
+    seed_urls = _required_string_tuple(
+        scraping,
+        "seed_urls",
+        "scraping",
+    )
+    allowed_page_hosts = _required_string_tuple(
+        scraping,
+        "allowed_page_hosts",
+        "scraping",
+    )
+    allowed_image_hosts = _required_string_tuple(
+        scraping,
+        "allowed_image_hosts",
+        "scraping",
+    )
+
+    return ScrapingSettings(
+        enabled=_required_bool(scraping, "enabled", "scraping"),
+        schedule=_required_string(scraping, "schedule", "scraping"),
+        quarantine_by_default=_required_bool(
+            scraping,
+            "quarantine_by_default",
+            "scraping",
+        ),
+        seed_urls=seed_urls,
+        allowed_page_hosts=frozenset(allowed_page_hosts),
+        allowed_image_hosts=frozenset(allowed_image_hosts),
+        maximum_pages=_required_int(
+            scraping,
+            "maximum_pages",
+            "scraping",
+        ),
+        maximum_depth=_required_int(
+            scraping,
+            "maximum_depth",
+            "scraping",
+        ),
+        maximum_images_per_run=_required_int(
+            scraping,
+            "maximum_images_per_run",
+            "scraping",
+        ),
+        maximum_image_size_mb=_required_int(
+            scraping,
+            "maximum_image_size_mb",
+            "scraping",
+        ),
+    )
 
 def load_training_config(
     path: str | Path = "configs/train.yaml",
@@ -310,3 +412,39 @@ def _required_float(
         raise TypeError(f"{section_name}.{key} must be numeric")
 
     return float(value)
+
+def _required_bool(
+    section: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> bool:
+    value = section.get(key)
+
+    if not isinstance(value, bool):
+        raise TypeError(
+            f"Configuration value {section_name}.{key} must be a boolean"
+        )
+
+    return value
+
+
+def _required_string_tuple(
+    section: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> tuple[str, ...]:
+    value = section.get(key)
+
+    if not isinstance(value, list) or not value:
+        raise TypeError(
+            f"Configuration value {section_name}.{key} "
+            "must be a non-empty list"
+        )
+
+    if not all(isinstance(item, str) and item.strip() for item in value):
+        raise TypeError(
+            f"Configuration value {section_name}.{key} "
+            "must contain non-empty strings"
+        )
+
+    return tuple(item.strip() for item in value)

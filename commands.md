@@ -36,3 +36,6 @@
   --output table
 `
 
+## git command to find occurences of a text
+`git grep -n "BlobCreatedEventHandler("
+`

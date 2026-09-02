@@ -14,6 +14,9 @@ from representation_learning.domain import (
     ImageStatus,
 )
 from representation_learning.ingestion.deduplication import ImageDeduplicator
+from representation_learning.ingestion.image_optimizer import (
+    ImageOptimizer,
+)
 from representation_learning.ingestion.validation import ImageValidator
 from representation_learning.storage.image_store import ImageStore, StorageArea
 from representation_learning.storage.metadata_store import MetadataStore
@@ -45,11 +48,13 @@ class BlobCreatedEventHandler:
         *,
         validator: ImageValidator,
         deduplicator: ImageDeduplicator,
+        optimizer: ImageOptimizer,
         image_store: ImageStore,
         metadata_store: MetadataStore,
     ) -> None:
         self._validator = validator
         self._deduplicator = deduplicator
+        self._optimizer = optimizer
         self._image_store = image_store
         self._metadata_store = metadata_store
 
@@ -111,9 +116,11 @@ class BlobCreatedEventHandler:
         ):
             raise RuntimeError("Successful validation returned incomplete metadata")
 
+        optimized = self._optimizer.optimize(image_bytes)
+
         accepted_uri = self._image_store.save(
             image_id=image_id,
-            content=image_bytes,
+            content=optimized.content,
             area=StorageArea.ACCEPTED,
             extension=extension,
         )
@@ -123,10 +130,11 @@ class BlobCreatedEventHandler:
             source=source,
             storage_uri=accepted_uri,
             checksum=deduplication.checksum,
-            content_type=validation.content_type,
-            width=validation.width,
-            height=validation.height,
-            size_bytes=len(image_bytes),
+            accepted_checksum=optimized.checksum,
+            content_type=optimized.content_type,
+            width=optimized.width,
+            height=optimized.height,
+            size_bytes=optimized.size_bytes,
             status=ImageStatus.ACCEPTED,
         )
 

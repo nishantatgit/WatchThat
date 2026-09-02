@@ -10,6 +10,7 @@ from representation_learning.ingestion.deduplication import (
 from representation_learning.ingestion.event_handler import (
     BlobCreatedEventHandler,
 )
+from representation_learning.ingestion.image_optimizer import ImageOptimizer
 from representation_learning.ingestion.validation import ImageValidator
 from representation_learning.storage.image_store import (
     LocalImageStore,
@@ -36,6 +37,10 @@ def test_valid_raw_image_is_accepted(tmp_path: Path) -> None:
     handler = BlobCreatedEventHandler(
         validator=ImageValidator(),
         deduplicator=ImageDeduplicator(InMemoryChecksumRegistry()),
+        optimizer=ImageOptimizer(
+            maximum_dimension=1024,
+            jpeg_quality=85,
+        ),
         image_store=image_store,
         metadata_store=metadata_store,
     )
@@ -67,6 +72,10 @@ def test_invalid_raw_image_is_quarantined(tmp_path: Path) -> None:
     handler = BlobCreatedEventHandler(
         validator=ImageValidator(),
         deduplicator=ImageDeduplicator(InMemoryChecksumRegistry()),
+        optimizer=ImageOptimizer(
+            maximum_dimension=1024,
+            jpeg_quality=85,
+        ),
         image_store=image_store,
         metadata_store=InMemoryMetadataStore(),
     )
@@ -100,6 +109,10 @@ def test_duplicate_raw_image_is_not_stored_twice(
     handler = BlobCreatedEventHandler(
         validator=ImageValidator(),
         deduplicator=ImageDeduplicator(checksum_registry),
+        optimizer=ImageOptimizer(
+            maximum_dimension=1024,
+            jpeg_quality=85,
+        ),
         image_store=image_store,
         metadata_store=metadata_store,
     )

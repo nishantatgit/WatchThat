@@ -9,6 +9,9 @@ from azure.servicebus import (
     ServiceBusClient,
     ServiceBusReceivedMessage,
 )
+from representational_learning.src.representation_learning.ingestion.image_optimizer import (
+    ImageOptimizer,
+)
 
 from representation_learning.ingestion.deduplication import (
     ImageDeduplicator,
@@ -107,6 +110,10 @@ def build_handler() -> tuple[
     handler = BlobCreatedEventHandler(
         validator=ImageValidator(),
         deduplicator=ImageDeduplicator(metadata_store),
+        optimizer=ImageOptimizer(
+            maximum_dimension=1024,
+            jpeg_quality=85,
+        ),
         image_store=image_store,
         metadata_store=metadata_store,
     )

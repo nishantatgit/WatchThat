@@ -8,6 +8,21 @@ scraping:
   schedule: "0 2 * * *"
   quarantine_by_default: true
 
+  seed_urls:
+    - "https://commons.wikimedia.org/wiki/Category:Birds"
+
+  allowed_page_hosts:
+    - "commons.wikimedia.org"
+
+  allowed_image_hosts:
+    - "upload.wikimedia.org"
+    - "thumb.wikimedia.org"
+
+  maximum_pages: 1
+  maximum_depth: 0
+  maximum_images_per_run: 5
+  maximum_image_size_mb: 10
+
 validation:
   supported_formats:
     - jpg
