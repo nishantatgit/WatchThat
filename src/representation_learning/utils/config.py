@@ -55,6 +55,8 @@ class ScrapingSettings:
     wikimedia_categories: tuple[str, ...]
     require_license: bool
     allowed_licenses: frozenset[str]
+    maximum_category_depth: int
+    maximum_categories: int
 
     def __post_init__(self) -> None:
         if not self.seed_urls:
@@ -86,6 +88,16 @@ class ScrapingSettings:
 
         if self.discovery_source == "wikimedia" and not self.wikimedia_categories:
             raise ValueError("At least one Wikimedia category is required")
+
+        if self.maximum_category_depth < 0:
+            raise ValueError(
+            "maximum_category_depth cannot be negative"
+        )
+
+        if self.maximum_categories <= 0:
+            raise ValueError(
+            "maximum_categories must be positive"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -302,6 +314,16 @@ def load_scraping_config(
                 "allowed_licenses",
                 "scraping",
             )
+        ),
+        maximum_category_depth=_required_int(
+            scraping,
+            "maximum_category_depth",
+            "scraping",
+        ),
+        maximum_categories=_required_int(
+            scraping,
+            "maximum_categories",
+            "scraping",
         ),
     )
 

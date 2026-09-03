@@ -14,7 +14,7 @@ scraping:
   discovery_source: "wikimedia"
 
   wikimedia_categories:
-    - "Featured pictures of birds"
+    - "Birds"
 
   allowed_page_hosts:
     - "commons.wikimedia.org"
@@ -35,6 +35,8 @@ scraping:
   maximum_depth: 0
   maximum_images_per_run: 5
   maximum_image_size_mb: 10
+  maximum_category_depth: 2
+  maximum_categories: 50
 
 validation:
   supported_formats:

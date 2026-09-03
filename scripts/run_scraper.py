@@ -65,6 +65,8 @@ def discover_wikimedia_images(
             discovered = source.discover(
                 category=category,
                 limit=remaining,
+                maximum_category_depth=(config.maximum_category_depth),
+                maximum_categories=config.maximum_categories,
             )
 
             for candidate in discovered:

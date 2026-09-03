@@ -1,5 +1,7 @@
 """Wikimedia Commons image discovery through the MediaWiki API."""
 
+from collections import deque
+from dataclasses import dataclass
 from html import unescape
 from typing import Any
 
@@ -9,6 +11,12 @@ from bs4 import BeautifulSoup
 from representation_learning.scraper.crawler import (
     ScrapedImageCandidate,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class WikimediaCategoryRequest:
+    title: str
+    depth: int
 
 
 class WikimediaCommonsSource:
@@ -36,6 +44,8 @@ class WikimediaCommonsSource:
         *,
         category: str,
         limit: int,
+        maximum_category_depth: int = 0,
+        maximum_categories: int = 1,
     ) -> tuple[ScrapedImageCandidate, ...]:
         if not category.strip():
             raise ValueError("category cannot be empty")
@@ -43,49 +53,174 @@ class WikimediaCommonsSource:
         if limit <= 0:
             raise ValueError("limit must be positive")
 
-        category_title = category.strip()
+        if maximum_category_depth < 0:
+            raise ValueError("maximum_category_depth cannot be negative")
 
-        if not category_title.casefold().startswith("category:"):
-            category_title = f"Category:{category_title}"
+        if maximum_categories <= 0:
+            raise ValueError("maximum_categories must be positive")
+
+        initial_category = self._normalize_category(category)
+
+        pending = deque(
+            [
+                WikimediaCategoryRequest(
+                    title=initial_category,
+                    depth=0,
+                )
+            ]
+        )
+        queued_categories = {initial_category.casefold()}
+        visited_categories: set[str] = set()
+        candidates: dict[str, ScrapedImageCandidate] = {}
+
+        while (
+            pending
+            and len(visited_categories) < maximum_categories
+            and len(candidates) < limit
+        ):
+            request = pending.popleft()
+            category_key = request.title.casefold()
+
+            if category_key in visited_categories:
+                continue
+
+            visited_categories.add(category_key)
+            continuation: str | None = None
+
+            while len(candidates) < limit:
+                payload = self._query_category(
+                    category=request.title,
+                    continuation=continuation,
+                )
+
+                pages = payload.get("query", {}).get(
+                    "pages",
+                    [],
+                )
+
+                if not isinstance(pages, list):
+                    raise TypeError("Wikimedia response pages must be a list")
+
+                for page in pages:
+                    if not isinstance(page, dict):
+                        continue
+
+                    namespace = page.get("ns")
+
+                    if namespace == 6:
+                        candidate = self._to_candidate(page)
+
+                        if candidate is not None:
+                            candidates.setdefault(
+                                candidate.image_url,
+                                candidate,
+                            )
+
+                    elif namespace == 14 and request.depth < maximum_category_depth:
+                        self._enqueue_category(
+                            page=page,
+                            depth=request.depth + 1,
+                            pending=pending,
+                            queued_categories=queued_categories,
+                            visited_categories=visited_categories,
+                            maximum_categories=maximum_categories,
+                        )
+
+                    if len(candidates) >= limit:
+                        break
+
+                continuation = self._continuation_token(payload)
+
+                if continuation is None:
+                    break
+
+        return tuple(candidates.values())
+
+    def close(self) -> None:
+        self._client.close()
+
+    def _query_category(
+        self,
+        *,
+        category: str,
+        continuation: str | None,
+    ) -> dict[str, Any]:
+        parameters = {
+            "action": "query",
+            "format": "json",
+            "formatversion": "2",
+            "generator": "categorymembers",
+            "gcmtitle": category,
+            "gcmtype": "file|subcat",
+            "gcmlimit": "50",
+            "prop": "info|imageinfo",
+            "inprop": "url",
+            "iiprop": "url|mime|size|extmetadata",
+        }
+
+        if continuation is not None:
+            parameters["gcmcontinue"] = continuation
 
         response = self._client.get(
             self._api_url,
-            params={
-                "action": "query",
-                "format": "json",
-                "formatversion": "2",
-                "generator": "categorymembers",
-                "gcmtitle": category_title,
-                "gcmtype": "file",
-                "gcmlimit": min(limit, 500),
-                "prop": "info|imageinfo",
-                "inprop": "url",
-                "iiprop": "url|mime|size|extmetadata",
-            },
+            params=parameters,
         )
         response.raise_for_status()
 
         payload = response.json()
-        pages = payload.get("query", {}).get("pages", [])
 
-        if not isinstance(pages, list):
-            raise TypeError("Wikimedia response pages must be a list")
+        if not isinstance(payload, dict):
+            raise TypeError("Wikimedia response must contain an object")
 
-        candidates: list[ScrapedImageCandidate] = []
+        return payload
 
-        for page in pages:
-            candidate = self._to_candidate(page)
+    @classmethod
+    def _enqueue_category(
+        cls,
+        *,
+        page: dict[str, Any],
+        depth: int,
+        pending: deque[WikimediaCategoryRequest],
+        queued_categories: set[str],
+        visited_categories: set[str],
+        maximum_categories: int,
+    ) -> None:
+        title = page.get("title")
 
-            if candidate is not None:
-                candidates.append(candidate)
+        if not isinstance(title, str):
+            return
 
-            if len(candidates) >= limit:
-                break
+        normalized_title = cls._normalize_category(title)
+        category_key = normalized_title.casefold()
 
-        return tuple(candidates)
+        if category_key in queued_categories:
+            return
 
-    def close(self) -> None:
-        self._client.close()
+        category_count = len(visited_categories) + len(pending)
+
+        if category_count >= maximum_categories:
+            return
+
+        queued_categories.add(category_key)
+        pending.append(
+            WikimediaCategoryRequest(
+                title=normalized_title,
+                depth=depth,
+            )
+        )
+
+    @staticmethod
+    def _continuation_token(
+        payload: dict[str, Any],
+    ) -> str | None:
+        continuation = payload.get("continue")
+
+        if not isinstance(continuation, dict):
+            return None
+
+        token = continuation.get("gcmcontinue")
+
+        return token if isinstance(token, str) else None
 
     @classmethod
     def _to_candidate(
@@ -135,11 +270,7 @@ class WikimediaCommonsSource:
                 metadata,
                 "Artist",
             ),
-            title=cls._metadata_text(
-                metadata,
-                "ObjectName",
-            )
-            or cls._page_title(page),
+            title=(cls._metadata_text(metadata, "ObjectName") or cls._page_title(page)),
         )
 
     @staticmethod
@@ -176,7 +307,13 @@ class WikimediaCommonsSource:
         if not isinstance(title, str):
             return None
 
-        if title.startswith("File:"):
-            return title.removeprefix("File:")
+        return title.removeprefix("File:")
 
-        return title
+    @staticmethod
+    def _normalize_category(category: str) -> str:
+        normalized = category.strip()
+
+        if normalized.casefold().startswith("category:"):
+            return f"Category:{normalized.split(':', maxsplit=1)[1]}"
+
+        return f"Category:{normalized}"
