@@ -12,6 +12,7 @@ storage:
   quarantine_container: quarantined-images
   accepted_container: accepted-images
   dataset_manifest_container: dataset-manifests
+  scraper_state_table: scraperstate
 
 machine_learning:
   workspace_name: null

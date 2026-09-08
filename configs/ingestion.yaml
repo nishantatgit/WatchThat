@@ -37,6 +37,7 @@ scraping:
   maximum_image_size_mb: 10
   maximum_category_depth: 2
   maximum_categories: 50
+  maximum_candidate_attempts: 3
 
 validation:
   supported_formats:

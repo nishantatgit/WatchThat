@@ -19,6 +19,11 @@ from representation_learning.scraper.image_downloader import (
 from representation_learning.scraper.source_policy import (
     ScrapingSourcePolicy,
 )
+from representation_learning.scraper.state_store import (
+    AzureTableScraperStateStore,
+    ScraperItemStatus,
+    ScraperStateRecord,
+)
 from representation_learning.scraper.wikimedia import (
     WikimediaCommonsSource,
 )
@@ -160,27 +165,64 @@ def main() -> None:
             ),
         },
     )
+
+    state_store = AzureTableScraperStateStore(
+        endpoint=infrastructure_config.storage.table_endpoint,
+        table_name=(infrastructure_config.storage.scraper_state_table),
+    )
     publisher = RawImagePublisher(
         image_store=image_store,
     )
 
     published_count = 0
     download_failure_count = 0
+    previously_processed_count = 0
 
     try:
         policy_rejection_count = 0
         for candidate in candidates:
+            existing_record = state_store.get(candidate.source_page_url)
+
+            if existing_record is not None and existing_record.status in {
+                ScraperItemStatus.PUBLISHED,
+                ScraperItemStatus.REJECTED,
+            }:
+                previously_processed_count += 1
+                print(f"Already processed: {candidate.title}")
+                continue
+
+            if (
+                existing_record is not None
+                and existing_record.attempt_count
+                >= scraping_config.maximum_candidate_attempts
+            ):
+                previously_processed_count += 1
+                print(f"Maximum attempts reached: {candidate.title}")
+                continue
+
+            record = existing_record or ScraperStateRecord.discovered(candidate)
+
+            if existing_record is None:
+                state_store.save(record)
+
             decision = source_policy.evaluate(candidate)
 
             if not decision.allowed:
                 policy_rejection_count += 1
-                print(f"Rejected {candidate.title}: {decision.reason}")
+                reason = decision.reason or "Rejected by policy"
+
+                state_store.save(record.mark_rejected(reason))
+
+                print(f"Rejected {candidate.title}: {reason}")
                 continue
 
             try:
                 downloaded = image_downloader.download(candidate)
             except (httpx.HTTPError, ValueError) as error:
                 download_failure_count += 1
+
+                state_store.save(record.mark_failed(str(error)))
+
                 print(f"Skipped {candidate.title}: {error}")
                 continue
 
@@ -190,12 +232,15 @@ def main() -> None:
             )
             published_count += 1
 
+            state_store.save(record.mark_published(published.storage_uri))
+
             print(f"Published: {published.storage_uri}")
     finally:
         image_downloader.close()
 
     print(f"Images published: {published_count}")
     print(f"Image download failures: {download_failure_count}")
+    print(f"Previously processed: {previously_processed_count}")
 
 
 if __name__ == "__main__":

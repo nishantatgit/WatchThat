@@ -24,6 +24,7 @@ class StorageSettings:
     quarantine_container: str
     accepted_container: str
     dataset_manifest_container: str
+    scraper_state_table: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +58,7 @@ class ScrapingSettings:
     allowed_licenses: frozenset[str]
     maximum_category_depth: int
     maximum_categories: int
+    maximum_candidate_attempts: int
 
     def __post_init__(self) -> None:
         if not self.seed_urls:
@@ -90,14 +92,13 @@ class ScrapingSettings:
             raise ValueError("At least one Wikimedia category is required")
 
         if self.maximum_category_depth < 0:
-            raise ValueError(
-            "maximum_category_depth cannot be negative"
-        )
+            raise ValueError("maximum_category_depth cannot be negative")
 
         if self.maximum_categories <= 0:
-            raise ValueError(
-            "maximum_categories must be positive"
-        )
+            raise ValueError("maximum_categories must be positive")
+
+        if self.maximum_candidate_attempts <= 0:
+            raise ValueError("maximum_candidate_attempts must be positive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +213,11 @@ def load_infrastructure_config(
                 "dataset_manifest_container",
                 "storage",
             ),
+            scraper_state_table=_required_string(
+                storage,
+                "scraper_state_table",
+                "storage",
+            ),
         ),
         messaging=MessagingSettings(
             fully_qualified_namespace=_required_string(
@@ -323,6 +329,11 @@ def load_scraping_config(
         maximum_categories=_required_int(
             scraping,
             "maximum_categories",
+            "scraping",
+        ),
+        maximum_candidate_attempts=_required_int(
+            scraping,
+            "maximum_candidate_attempts",
             "scraping",
         ),
     )
