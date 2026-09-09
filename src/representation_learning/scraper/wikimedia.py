@@ -1,6 +1,7 @@
 """Wikimedia Commons image discovery through the MediaWiki API."""
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from html import unescape
 from typing import Any
@@ -46,6 +47,7 @@ class WikimediaCommonsSource:
         limit: int,
         maximum_category_depth: int = 0,
         maximum_categories: int = 1,
+        should_include: (Callable[[ScrapedImageCandidate], bool] | None) = None,
     ) -> tuple[ScrapedImageCandidate, ...]:
         if not category.strip():
             raise ValueError("category cannot be empty")
@@ -110,11 +112,16 @@ class WikimediaCommonsSource:
                     if namespace == 6:
                         candidate = self._to_candidate(page)
 
-                        if candidate is not None:
-                            candidates.setdefault(
-                                candidate.image_url,
-                                candidate,
-                            )
+                        if candidate is None:
+                            continue
+
+                        if should_include is not None and not should_include(candidate):
+                            continue
+
+                        candidates.setdefault(
+                            candidate.image_url,
+                            candidate,
+                        )
 
                     elif namespace == 14 and request.depth < maximum_category_depth:
                         self._enqueue_category(

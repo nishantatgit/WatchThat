@@ -1,6 +1,7 @@
 """Daily scraper entry point."""
 
 import argparse
+from collections.abc import Callable
 
 import httpx
 
@@ -23,6 +24,7 @@ from representation_learning.scraper.state_store import (
     AzureTableScraperStateStore,
     ScraperItemStatus,
     ScraperStateRecord,
+    ScraperStateStore,
 )
 from representation_learning.scraper.wikimedia import (
     WikimediaCommonsSource,
@@ -54,8 +56,32 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def should_process_candidate(
+    *,
+    candidate: ScrapedImageCandidate,
+    state_store: ScraperStateStore,
+    maximum_attempts: int,
+) -> bool:
+    record = state_store.get(candidate.source_page_url)
+
+    if record is None:
+        return True
+
+    if record.status in {
+        ScraperItemStatus.PUBLISHED,
+        ScraperItemStatus.REJECTED,
+    }:
+        return False
+
+    return record.attempt_count < maximum_attempts
+
+
 def discover_wikimedia_images(
     config: ScrapingSettings,
+    should_include: Callable[
+        [ScrapedImageCandidate],
+        bool,
+    ],
 ) -> tuple[ScrapedImageCandidate, ...]:
     source = WikimediaCommonsSource()
     candidates: dict[str, ScrapedImageCandidate] = {}
@@ -72,6 +98,7 @@ def discover_wikimedia_images(
                 limit=remaining,
                 maximum_category_depth=(config.maximum_category_depth),
                 maximum_categories=config.maximum_categories,
+                should_include=should_include,
             )
 
             for candidate in discovered:
@@ -87,6 +114,10 @@ def discover_wikimedia_images(
 
 def discover_generic_web_images(
     config: ScrapingSettings,
+    should_include: Callable[
+        [ScrapedImageCandidate],
+        bool,
+    ],
 ) -> tuple[ScrapedImageCandidate, ...]:
     frontier = InMemoryUrlFrontier(
         maximum_urls=config.maximum_pages,
@@ -108,19 +139,25 @@ def discover_generic_web_images(
         print(f"Pages blocked by robots: {result.pages_blocked_by_robots}")
         print(f"Page failures: {len(result.failures)}")
 
-        return result.images[: config.maximum_images_per_run]
+        return tuple(
+            candidate for candidate in result.images if should_include(candidate)
+        )[: config.maximum_images_per_run]
     finally:
         crawler.close()
 
 
 def discover_images(
     config: ScrapingSettings,
+    should_include: Callable[
+        [ScrapedImageCandidate],
+        bool,
+    ],
 ) -> tuple[ScrapedImageCandidate, ...]:
     if config.discovery_source == "wikimedia":
-        return discover_wikimedia_images(config)
+        return discover_wikimedia_images(config, should_include)
 
     if config.discovery_source == "generic_web":
-        return discover_generic_web_images(config)
+        return discover_generic_web_images(config, should_include)
 
     raise ValueError(f"Unsupported discovery source: {config.discovery_source}")
 
@@ -139,7 +176,19 @@ def main() -> None:
         print("Scraping is disabled")
         return
 
-    candidates = discover_images(scraping_config)
+    state_store = AzureTableScraperStateStore(
+        endpoint=infrastructure_config.storage.table_endpoint,
+        table_name=(infrastructure_config.storage.scraper_state_table),
+    )
+
+    candidates = discover_images(
+        scraping_config,
+        lambda candidate: should_process_candidate(
+            candidate=candidate,
+            state_store=state_store,
+            maximum_attempts=(scraping_config.maximum_candidate_attempts),
+        ),
+    )
 
     print(f"Discovery source: {scraping_config.discovery_source}")
     print(f"Image candidates: {len(candidates)}")
@@ -166,17 +215,12 @@ def main() -> None:
         },
     )
 
-    state_store = AzureTableScraperStateStore(
-        endpoint=infrastructure_config.storage.table_endpoint,
-        table_name=(infrastructure_config.storage.scraper_state_table),
-    )
     publisher = RawImagePublisher(
         image_store=image_store,
     )
 
     published_count = 0
     download_failure_count = 0
-    previously_processed_count = 0
 
     try:
         policy_rejection_count = 0
@@ -187,7 +231,6 @@ def main() -> None:
                 ScraperItemStatus.PUBLISHED,
                 ScraperItemStatus.REJECTED,
             }:
-                previously_processed_count += 1
                 print(f"Already processed: {candidate.title}")
                 continue
 
@@ -196,7 +239,6 @@ def main() -> None:
                 and existing_record.attempt_count
                 >= scraping_config.maximum_candidate_attempts
             ):
-                previously_processed_count += 1
                 print(f"Maximum attempts reached: {candidate.title}")
                 continue
 
@@ -240,7 +282,6 @@ def main() -> None:
 
     print(f"Images published: {published_count}")
     print(f"Image download failures: {download_failure_count}")
-    print(f"Previously processed: {previously_processed_count}")
 
 
 if __name__ == "__main__":
