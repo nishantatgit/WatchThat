@@ -18,6 +18,7 @@ from representation_learning.scraper.crawler import (
 
 class ScraperItemStatus(StrEnum):
     DISCOVERED = "discovered"
+    QUEUED = "queued"
     PUBLISHED = "published"
     REJECTED = "rejected"
     FAILED = "failed"
@@ -50,6 +51,14 @@ class ScraperStateRecord:
             storage_uri=None,
             discovered_at=now,
             updated_at=now,
+        )
+
+    def mark_queued(self) -> "ScraperStateRecord":
+        return replace(
+            self,
+            status=ScraperItemStatus.QUEUED,
+            last_error=None,
+            updated_at=datetime.now(UTC),
         )
 
     def mark_published(

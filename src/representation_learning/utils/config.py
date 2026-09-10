@@ -31,7 +31,7 @@ class StorageSettings:
 class MessagingSettings:
     fully_qualified_namespace: str
     ingestion_queue: str
-
+    download_queue: str
 
 @dataclass(frozen=True, slots=True)
 class VectorStoreSettings:
@@ -242,6 +242,11 @@ def load_infrastructure_config(
             ingestion_queue=_required_string(
                 messaging,
                 "ingestion_queue",
+                "messaging",
+            ),
+            download_queue=_required_string(
+                messaging,
+                "download_queue",
                 "messaging",
             ),
         ),

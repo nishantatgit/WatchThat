@@ -3,7 +3,7 @@
 import argparse
 from collections.abc import Callable
 
-import httpx
+from azure.core.exceptions import AzureError
 
 from representation_learning.scraper.crawler import (
     HtmlPageDownloader,
@@ -13,9 +13,8 @@ from representation_learning.scraper.crawler import (
     ScrapedImageCandidate,
     WebCrawler,
 )
-from representation_learning.scraper.image_downloader import (
-    ImageDownloader,
-    RawImagePublisher,
+from representation_learning.scraper.download_queue import (
+    ImageDownloadQueuePublisher,
 )
 from representation_learning.scraper.source_policy import (
     ScrapingSourcePolicy,
@@ -28,10 +27,6 @@ from representation_learning.scraper.state_store import (
 )
 from representation_learning.scraper.wikimedia import (
     WikimediaCommonsSource,
-)
-from representation_learning.storage.image_store import (
-    AzureBlobImageStore,
-    StorageArea,
 )
 from representation_learning.utils.config import (
     ScrapingSettings,
@@ -68,6 +63,7 @@ def should_process_candidate(
         return True
 
     if record.status in {
+        ScraperItemStatus.QUEUED,
         ScraperItemStatus.PUBLISHED,
         ScraperItemStatus.REJECTED,
     }:
@@ -199,35 +195,25 @@ def main() -> None:
         require_license=scraping_config.require_license,
     )
 
-    image_downloader = ImageDownloader(
-        allowed_hosts=scraping_config.allowed_image_hosts,
-        maximum_response_bytes=(scraping_config.maximum_image_size_mb * 1024 * 1024),
+    queue_publisher = ImageDownloadQueuePublisher(
+        fully_qualified_namespace=(
+            infrastructure_config.messaging.fully_qualified_namespace
+        ),
+        queue_name=infrastructure_config.messaging.download_queue,
     )
 
-    image_store = AzureBlobImageStore(
-        account_url=infrastructure_config.storage.account_url,
-        container_names={
-            StorageArea.RAW: infrastructure_config.storage.raw_container,
-            StorageArea.ACCEPTED: (infrastructure_config.storage.accepted_container),
-            StorageArea.QUARANTINE: (
-                infrastructure_config.storage.quarantine_container
-            ),
-        },
-    )
-
-    publisher = RawImagePublisher(
-        image_store=image_store,
-    )
-
-    published_count = 0
-    download_failure_count = 0
+    queued_count = 0
+    policy_rejection_count = 0
+    queue_failure_count = 0
 
     try:
-        policy_rejection_count = 0
         for candidate in candidates:
-            existing_record = state_store.get(candidate.source_page_url)
+            existing_record = state_store.get(
+                candidate.source_page_url,
+            )
 
             if existing_record is not None and existing_record.status in {
+                ScraperItemStatus.QUEUED,
                 ScraperItemStatus.PUBLISHED,
                 ScraperItemStatus.REJECTED,
             }:
@@ -242,7 +228,9 @@ def main() -> None:
                 print(f"Maximum attempts reached: {candidate.title}")
                 continue
 
-            record = existing_record or ScraperStateRecord.discovered(candidate)
+            record = existing_record or ScraperStateRecord.discovered(
+                candidate,
+            )
 
             if existing_record is None:
                 state_store.save(record)
@@ -259,29 +247,31 @@ def main() -> None:
                 continue
 
             try:
-                downloaded = image_downloader.download(candidate)
-            except (httpx.HTTPError, ValueError) as error:
-                download_failure_count += 1
-
+                message_id = queue_publisher.publish(candidate)
+            except AzureError as error:
+                queue_failure_count += 1
                 state_store.save(record.mark_failed(str(error)))
 
-                print(f"Skipped {candidate.title}: {error}")
+                print(f"Failed to queue {candidate.title}: {error}")
                 continue
 
-            published = publisher.publish(
-                candidate=candidate,
-                downloaded=downloaded,
-            )
-            published_count += 1
+            latest_record = state_store.get(candidate.source_page_url) or record
 
-            state_store.save(record.mark_published(published.storage_uri))
+            if latest_record.status not in {
+                ScraperItemStatus.PUBLISHED,
+                ScraperItemStatus.REJECTED,
+            }:
+                state_store.save(latest_record.mark_queued())
 
-            print(f"Published: {published.storage_uri}")
+            queued_count += 1
+
+            print(f"Queued: {candidate.title} (message_id={message_id})")
     finally:
-        image_downloader.close()
+        queue_publisher.close()
 
-    print(f"Images published: {published_count}")
-    print(f"Image download failures: {download_failure_count}")
+    print(f"Images queued: {queued_count}")
+    print(f"Policy rejections: {policy_rejection_count}")
+    print(f"Queue failures: {queue_failure_count}")
 
 
 if __name__ == "__main__":

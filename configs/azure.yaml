@@ -39,3 +39,4 @@ deployment:
 messaging:
   fully_qualified_namespace: sb-reprlearn-nishant-dev.servicebus.windows.net
   ingestion_queue: image-ingestion
+  download_queue: image-downloads
