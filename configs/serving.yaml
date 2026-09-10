@@ -10,8 +10,8 @@ latency_targets_ms:
   end_to_end_p95: 700
 
 model:
-  embedding_dimension: 256
-  active_version: null
+  embedding_dimension: 512
+  active_version: nullcnn-v1-e513c77b369b8819
 
 vector_search:
   number_of_results: 10
