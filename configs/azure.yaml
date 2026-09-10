@@ -21,8 +21,10 @@ machine_learning:
   registered_model_name: image-encoder
 
 vector_store:
-  search_service_name: null
+  search_service_name: reprlearn-nishant-search-dev
+  endpoint: https://reprlearn-nishant-search-dev.search.windows.net
   active_index_alias: image-embeddings-active
+  embedding_dimension: 512
 
 feature_store:
   name: image-feature-store

@@ -34,10 +34,23 @@ class MessagingSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class VectorStoreSettings:
+    search_service_name: str
+    endpoint: str
+    active_index_alias: str
+    embedding_dimension: int
+
+    def __post_init__(self) -> None:
+        if self.embedding_dimension <= 0:
+            raise ValueError("vector_store.embedding_dimension must be positive")
+
+
+@dataclass(frozen=True, slots=True)
 class InfrastructureConfig:
     azure: AzureSettings
     storage: StorageSettings
     messaging: MessagingSettings
+    vector_store: VectorStoreSettings
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +113,9 @@ class ScrapingSettings:
         if self.maximum_candidate_attempts <= 0:
             raise ValueError("maximum_candidate_attempts must be positive")
 
+        if self.require_license and not self.allowed_licenses:
+            raise ValueError("At least one allowed licence is required")
+
 
 @dataclass(frozen=True, slots=True)
 class TrainingDataSettings:
@@ -127,9 +143,6 @@ class TrainingDataSettings:
 
         if abs(ratio_sum - 1.0) > 1e-9:
             raise ValueError("Dataset split ratios must add up to 1")
-
-        if self.require_license and not self.allowed_licenses:
-            raise ValueError("At least one allowed licence is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +202,7 @@ def load_infrastructure_config(
     azure = _required_section(raw_config, "azure")
     storage = _required_section(raw_config, "storage")
     messaging = _required_section(raw_config, "messaging")
+    vector_store = _required_section(raw_config, "vector_store")
 
     return InfrastructureConfig(
         azure=AzureSettings(
@@ -229,6 +243,28 @@ def load_infrastructure_config(
                 messaging,
                 "ingestion_queue",
                 "messaging",
+            ),
+        ),
+        vector_store=VectorStoreSettings(
+            search_service_name=_required_string(
+                vector_store,
+                "search_service_name",
+                "vector_store",
+            ),
+            endpoint=_required_string(
+                vector_store,
+                "endpoint",
+                "vector_store",
+            ),
+            active_index_alias=_required_string(
+                vector_store,
+                "active_index_alias",
+                "vector_store",
+            ),
+            embedding_dimension=_required_int(
+                vector_store,
+                "embedding_dimension",
+                "vector_store",
             ),
         ),
     )
