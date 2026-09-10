@@ -73,6 +73,9 @@ class RawImagePublisher:
         if candidate.title is not None:
             metadata["title"] = candidate.title
 
+        if candidate.source_category is not None:
+            metadata["source_category"] = candidate.source_category
+
         storage_uri = self._image_store.save(
             image_id=image_id,
             content=downloaded.content,

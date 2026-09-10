@@ -102,6 +102,9 @@ class AzureTableMetadataStore:
         if record.creator is not None:
             entity["Creator"] = record.creator
 
+        if record.source_category is not None:
+            entity["SourceCategory"] = record.source_category
+
         try:
             # create_entity fails if this checksum already exists.
             self._table.create_entity(entity=entity)
@@ -180,10 +183,18 @@ class AzureTableMetadataStore:
             source=ImageSource(entity["Source"]),
             storage_uri=entity["StorageUri"],
             checksum=entity["RowKey"],
+            accepted_checksum=entity.get(
+                "AcceptedChecksum",
+                entity["RowKey"],
+            ),
             content_type=entity["ContentType"],
             width=int(entity["Width"]),
             height=int(entity["Height"]),
             size_bytes=int(entity["SizeBytes"]),
             status=ImageStatus(entity["Status"]),
             created_at=created_at,
+            source_page_url=entity.get("SourcePageUrl"),
+            license_name=entity.get("LicenseName"),
+            creator=entity.get("Creator"),
+            source_category=entity.get("SourceCategory"),
         )

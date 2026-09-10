@@ -43,6 +43,7 @@ class ImageRecord:
     source_page_url: str | None = None
     license_name: str | None = None
     creator: str | None = None
+    source_category: str | None = None
 
     def __post_init__(self) -> None:
         if not self.image_id.strip():
@@ -86,6 +87,7 @@ class ImageRecord:
         source_page_url: str | None = None,
         license_name: str | None = None,
         creator: str | None = None,
+        source_category: str | None = None,
     ) -> "ImageRecord":
         return cls(
             image_id=image_id,
@@ -102,4 +104,5 @@ class ImageRecord:
             source_page_url=source_page_url,
             license_name=license_name,
             creator=creator,
+            source_category=source_category,
         )

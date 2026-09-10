@@ -106,6 +106,11 @@ def load_dataset_manifest(
                 )
 
             try:
+                source_category = data.get("source_category")
+
+                if source_category is not None and not isinstance(source_category, str):
+                    raise TypeError("source_category must be a string or null")
+
                 item = DatasetManifestItem(
                     image_id=str(data["image_id"]),
                     storage_uri=str(data["storage_uri"]),

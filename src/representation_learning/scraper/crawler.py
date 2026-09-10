@@ -29,6 +29,7 @@ class ScrapedImageCandidate:
     license_name: str | None = None
     creator: str | None = None
     title: str | None = None
+    source_category: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

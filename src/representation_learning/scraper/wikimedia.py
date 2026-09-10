@@ -110,7 +110,10 @@ class WikimediaCommonsSource:
                     namespace = page.get("ns")
 
                     if namespace == 6:
-                        candidate = self._to_candidate(page)
+                        candidate = self._to_candidate(
+                            page,
+                            source_category=request.title,
+                        )
 
                         if candidate is None:
                             continue
@@ -233,6 +236,8 @@ class WikimediaCommonsSource:
     def _to_candidate(
         cls,
         page: dict[str, Any],
+        *,
+        source_category: str,
     ) -> ScrapedImageCandidate | None:
         image_info_items = page.get("imageinfo")
 
@@ -278,6 +283,7 @@ class WikimediaCommonsSource:
                 "Artist",
             ),
             title=(cls._metadata_text(metadata, "ObjectName") or cls._page_title(page)),
+            source_category=source_category,
         )
 
     @staticmethod

@@ -22,6 +22,7 @@ class DatasetManifestItem:
     checksum: str
     content_type: str
     size_bytes: int
+    source_category: str | None = None
 
     def to_dict(self) -> dict[str, str | int]:
         return {
@@ -30,6 +31,7 @@ class DatasetManifestItem:
             "checksum": self.checksum,
             "content_type": self.content_type,
             "size_bytes": self.size_bytes,
+            "source_category": self.source_category,
         }
 
 
@@ -77,6 +79,7 @@ class DatasetSnapshotBuilder:
                 checksum=record.accepted_checksum,
                 content_type=record.content_type,
                 size_bytes=record.size_bytes,
+                source_category=record.source_category,
             )
             for record in sorted(
                 records,

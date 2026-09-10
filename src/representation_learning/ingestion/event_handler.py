@@ -66,6 +66,13 @@ class BlobCreatedEventHandler:
     ) -> BlobProcessingResult:
         image_id, extension = self._identity_from_uri(raw_blob_uri)
 
+        raw_metadata = self._image_store.get_metadata(raw_blob_uri)
+
+        metadata_source = raw_metadata.get("source")
+
+        if metadata_source is not None:
+            source = ImageSource(metadata_source)
+
         received = ImageReceived(
             image_id=image_id,
             source=source,
@@ -81,6 +88,7 @@ class BlobCreatedEventHandler:
                 content=image_bytes,
                 area=StorageArea.QUARANTINE,
                 extension=extension,
+                metadata=raw_metadata,
             )
 
             self._image_store.delete(raw_blob_uri)
@@ -123,6 +131,7 @@ class BlobCreatedEventHandler:
             content=optimized.content,
             area=StorageArea.ACCEPTED,
             extension=extension,
+            metadata=raw_metadata,
         )
 
         record = ImageRecord.create(
@@ -136,6 +145,10 @@ class BlobCreatedEventHandler:
             height=optimized.height,
             size_bytes=optimized.size_bytes,
             status=ImageStatus.ACCEPTED,
+            source_page_url=raw_metadata.get("source_page_url"),
+            license_name=raw_metadata.get("license_name"),
+            creator=raw_metadata.get("creator"),
+            source_category=raw_metadata.get("source_category"),
         )
 
         try:
