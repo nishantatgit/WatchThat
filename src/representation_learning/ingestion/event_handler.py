@@ -130,7 +130,7 @@ class BlobCreatedEventHandler:
             image_id=image_id,
             content=optimized.content,
             area=StorageArea.ACCEPTED,
-            extension=extension,
+            extension=optimized.extension,
             metadata=raw_metadata,
         )
 
