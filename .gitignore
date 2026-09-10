@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+
+# Training outputs and PyTorch checkpoints
+outputs/*
+!outputs/.gitkeep
+*.pt
+*.pth
