@@ -1,5 +1,6 @@
 """Wikimedia Commons image discovery through the MediaWiki API."""
 
+import time as time_module
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -20,6 +21,14 @@ class WikimediaCategoryRequest:
     depth: int
 
 
+@dataclass(frozen=True, slots=True)
+class WikimediaDiscoveryProgress:
+    api_pages_processed: int
+    candidates_found: int
+    categories_visited: int
+    current_category: str
+
+
 class WikimediaCommonsSource:
     def __init__(
         self,
@@ -27,16 +36,29 @@ class WikimediaCommonsSource:
         api_url: str = "https://commons.wikimedia.org/w/api.php",
         timeout_seconds: float = 20.0,
         user_agent: str = "RepresentationLearningCrawler/0.1",
+        maximum_attempts: int = 8,
+        minimum_request_interval_seconds: float = 1.0,
     ) -> None:
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
 
+        if maximum_attempts <= 0:
+            raise ValueError("maximum_attempts must be positive")
+
+        if minimum_request_interval_seconds < 0:
+            raise ValueError("minimum_request_interval_seconds cannot be negative")
+
         self._api_url = api_url
+        self._maximum_attempts = maximum_attempts
+        self._minimum_request_interval_seconds = minimum_request_interval_seconds
+        self._last_request_started_at: float | None = None
+
         self._client = httpx.Client(
             timeout=timeout_seconds,
             headers={
                 "User-Agent": user_agent,
                 "Accept": "application/json",
+                "Accept-Encoding": "gzip",
             },
         )
 
@@ -48,6 +70,8 @@ class WikimediaCommonsSource:
         maximum_category_depth: int = 0,
         maximum_categories: int = 1,
         should_include: (Callable[[ScrapedImageCandidate], bool] | None) = None,
+        progress_callback: (Callable[[WikimediaDiscoveryProgress], None] | None) = None,
+        progress_interval_pages: int = 10,
     ) -> tuple[ScrapedImageCandidate, ...]:
         if not category.strip():
             raise ValueError("category cannot be empty")
@@ -60,6 +84,9 @@ class WikimediaCommonsSource:
 
         if maximum_categories <= 0:
             raise ValueError("maximum_categories must be positive")
+
+        if progress_interval_pages <= 0:
+            raise ValueError("progress_interval_pages must be positive")
 
         initial_category = self._normalize_category(category)
 
@@ -74,6 +101,7 @@ class WikimediaCommonsSource:
         queued_categories = {initial_category.casefold()}
         visited_categories: set[str] = set()
         candidates: dict[str, ScrapedImageCandidate] = {}
+        api_pages_processed = 0
 
         while (
             pending
@@ -94,6 +122,8 @@ class WikimediaCommonsSource:
                     category=request.title,
                     continuation=continuation,
                 )
+
+                api_pages_processed += 1
 
                 pages = payload.get("query", {}).get(
                     "pages",
@@ -139,6 +169,18 @@ class WikimediaCommonsSource:
                     if len(candidates) >= limit:
                         break
 
+                if (
+                    progress_callback is not None
+                    and api_pages_processed % progress_interval_pages == 0
+                ):
+                    progress_callback(
+                        WikimediaDiscoveryProgress(
+                            api_pages_processed=api_pages_processed,
+                            candidates_found=len(candidates),
+                            categories_visited=len(visited_categories),
+                            current_category=request.title,
+                        )
+                    )
                 continuation = self._continuation_token(payload)
 
                 if continuation is None:
@@ -166,23 +208,92 @@ class WikimediaCommonsSource:
             "prop": "info|imageinfo",
             "inprop": "url",
             "iiprop": "url|mime|size|extmetadata",
+            "maxlag": "5",
         }
 
         if continuation is not None:
             parameters["gcmcontinue"] = continuation
 
-        response = self._client.get(
-            self._api_url,
-            params=parameters,
-        )
-        response.raise_for_status()
+        last_error: httpx.HTTPError | None = None
 
-        payload = response.json()
+        for attempt_index in range(self._maximum_attempts):
+            self._wait_for_request_slot()
 
-        if not isinstance(payload, dict):
-            raise TypeError("Wikimedia response must contain an object")
+            try:
+                response = self._client.get(
+                    self._api_url,
+                    params=parameters,
+                )
 
-        return payload
+                if response.status_code not in {
+                    429,
+                    500,
+                    502,
+                    503,
+                    504,
+                }:
+                    response.raise_for_status()
+
+                    payload = response.json()
+
+                    if not isinstance(payload, dict):
+                        raise TypeError("Wikimedia response must contain an object")
+
+                    return payload
+
+                response.raise_for_status()
+            except httpx.HTTPError as error:
+                last_error = error
+
+                if attempt_index + 1 >= self._maximum_attempts:
+                    raise
+
+                delay = self._retry_delay(
+                    attempt_index=attempt_index,
+                    response=error.response,
+                )
+
+                time_module.sleep(delay)
+
+        if last_error is not None:
+            raise last_error
+
+        raise RuntimeError("Wikimedia request failed without an error")
+
+    def _wait_for_request_slot(self) -> None:
+        if self._last_request_started_at is not None:
+            elapsed = time_module.monotonic() - self._last_request_started_at
+            remaining = self._minimum_request_interval_seconds - elapsed
+
+            if remaining > 0:
+                time_module.sleep(remaining)
+
+        self._last_request_started_at = time_module.monotonic()
+
+    @staticmethod
+    def _retry_delay(
+        *,
+        attempt_index: int,
+        response: httpx.Response | None,
+    ) -> float:
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+
+            if retry_after is not None:
+                try:
+                    parsed_delay = float(retry_after)
+                except ValueError:
+                    pass
+                else:
+                    if parsed_delay > 0:
+                        return min(parsed_delay, 900.0)
+
+            if response.status_code == 429:
+                exponential_delay = 60.0 * (2.0**attempt_index)
+
+                return min(exponential_delay, 900.0)
+
+        return min(2.0**attempt_index, 60.0)
 
     @classmethod
     def _enqueue_category(

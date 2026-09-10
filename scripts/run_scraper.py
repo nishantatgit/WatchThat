@@ -27,6 +27,7 @@ from representation_learning.scraper.state_store import (
 )
 from representation_learning.scraper.wikimedia import (
     WikimediaCommonsSource,
+    WikimediaDiscoveryProgress,
 )
 from representation_learning.utils.config import (
     ScrapingSettings,
@@ -79,8 +80,26 @@ def discover_wikimedia_images(
         bool,
     ],
 ) -> tuple[ScrapedImageCandidate, ...]:
-    source = WikimediaCommonsSource()
+    source = WikimediaCommonsSource(
+        user_agent=("RepresentationLearningBot/0.1 (https://github.com/nishantatgit)"),
+        minimum_request_interval_seconds=5.0,
+        maximum_attempts=12,
+    )
     candidates: dict[str, ScrapedImageCandidate] = {}
+
+    def report_progress(
+        progress: WikimediaDiscoveryProgress,
+    ) -> None:
+        total_found = len(candidates) + progress.candidates_found
+
+        print(
+            "Discovery progress: "
+            f"{total_found}/{config.maximum_images_per_run} candidates; "
+            f"{progress.api_pages_processed} API pages; "
+            f"{progress.categories_visited} categories; "
+            f"current={progress.current_category}",
+            flush=True,
+        )
 
     try:
         for category in config.wikimedia_categories:
@@ -95,6 +114,8 @@ def discover_wikimedia_images(
                 maximum_category_depth=(config.maximum_category_depth),
                 maximum_categories=config.maximum_categories,
                 should_include=should_include,
+                progress_callback=report_progress,
+                progress_interval_pages=10,
             )
 
             for candidate in discovered:

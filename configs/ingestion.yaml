@@ -33,10 +33,10 @@ scraping:
 
   maximum_pages: 1
   maximum_depth: 0
-  maximum_images_per_run: 5
+  maximum_images_per_run: 60000
   maximum_image_size_mb: 10
-  maximum_category_depth: 2
-  maximum_categories: 50
+  maximum_category_depth: 3
+  maximum_categories: 2000
   maximum_candidate_attempts: 3
 
 validation:
