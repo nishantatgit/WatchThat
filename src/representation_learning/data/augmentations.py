@@ -53,3 +53,24 @@ class ContrastiveTransform:
         second_view = self._transform(rgb_image)
 
         return first_view, second_view
+
+
+class InferenceTransform:
+    def __init__(self, image_size: int = 224) -> None:
+        if image_size <= 0:
+            raise ValueError("image_size must be positive")
+
+        self._transform: Callable[[Image.Image], torch.Tensor] = transforms.Compose(
+            [
+                transforms.Resize(image_size),
+                transforms.CenterCrop(image_size),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=(0.5, 0.5, 0.5),
+                    std=(0.5, 0.5, 0.5),
+                ),
+            ]
+        )
+
+    def __call__(self, image: Image.Image) -> torch.Tensor:
+        return self._transform(image.convert("RGB"))

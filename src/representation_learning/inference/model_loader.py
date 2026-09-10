@@ -5,10 +5,10 @@ from pathlib import Path
 
 import torch
 
-from representation_learning.models.encoder import ImageEncoder
 from representation_learning.models.contrastive_model import (
     ContrastiveModel,
 )
+from representation_learning.models.encoder import ImageEncoder
 from representation_learning.training.checkpointing import (
     CheckpointManager,
     CheckpointMetadata,
@@ -38,15 +38,10 @@ class EncoderLoader:
         path = Path(checkpoint_path)
 
         if not path.is_file():
-            raise FileNotFoundError(
-                f"Model checkpoint does not exist: {path}"
-            )
+            raise FileNotFoundError(f"Model checkpoint does not exist: {path}")
 
         if architecture_version not in self._SUPPORTED_ARCHITECTURES:
-            raise ValueError(
-                "Unsupported model architecture: "
-                f"{architecture_version}"
-            )
+            raise ValueError(f"Unsupported model architecture: {architecture_version}")
 
         selected_device = device or self._select_device()
 
