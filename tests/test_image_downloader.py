@@ -58,6 +58,7 @@ def test_retries_after_rate_limit() -> None:
     assert downloaded.content_type == "image/jpeg"
     assert downloaded.extension == "jpg"
 
+
 def test_spaces_requests_using_minimum_interval() -> None:
     current_time = 0.0
     sleep_delays: list[float] = []
@@ -81,9 +82,7 @@ def test_spaces_requests_using_minimum_interval() -> None:
         )
 
     downloader = ImageDownloader(
-        allowed_hosts=frozenset(
-            {"upload.wikimedia.org"}
-        ),
+        allowed_hosts=frozenset({"upload.wikimedia.org"}),
         minimum_request_interval_seconds=1,
         sleep_function=fake_sleep,
         clock=clock,
@@ -91,12 +90,8 @@ def test_spaces_requests_using_minimum_interval() -> None:
     )
 
     candidate = ScrapedImageCandidate(
-        image_url=(
-            "https://upload.wikimedia.org/bird.jpg"
-        ),
-        source_page_url=(
-            "https://commons.wikimedia.org/wiki/File:Bird.jpg"
-        ),
+        image_url=("https://upload.wikimedia.org/bird.jpg"),
+        source_page_url=("https://commons.wikimedia.org/wiki/File:Bird.jpg"),
         license_name="CC BY-SA 4.0",
     )
 
@@ -125,9 +120,7 @@ def test_stops_after_maximum_attempts() -> None:
         )
 
     downloader = ImageDownloader(
-        allowed_hosts=frozenset(
-            {"upload.wikimedia.org"}
-        ),
+        allowed_hosts=frozenset({"upload.wikimedia.org"}),
         maximum_attempts=3,
         minimum_request_interval_seconds=0,
         sleep_function=sleep_delays.append,
@@ -135,12 +128,8 @@ def test_stops_after_maximum_attempts() -> None:
     )
 
     candidate = ScrapedImageCandidate(
-        image_url=(
-            "https://upload.wikimedia.org/bird.jpg"
-        ),
-        source_page_url=(
-            "https://commons.wikimedia.org/wiki/File:Bird.jpg"
-        ),
+        image_url=("https://upload.wikimedia.org/bird.jpg"),
+        source_page_url=("https://commons.wikimedia.org/wiki/File:Bird.jpg"),
         license_name="CC BY-SA 4.0",
     )
 

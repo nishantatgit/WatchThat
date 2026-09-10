@@ -23,22 +23,16 @@ class ScrapingSourcePolicy:
         require_license: bool = True,
     ) -> None:
         if not allowed_source_hosts:
-            raise ValueError(
-                "At least one source host must be allowed"
-            )
+            raise ValueError("At least one source host must be allowed")
 
         if require_license and not allowed_licenses:
-            raise ValueError(
-                "At least one licence must be allowed"
-            )
+            raise ValueError("At least one licence must be allowed")
 
         self._allowed_source_hosts = frozenset(
-            host.casefold()
-            for host in allowed_source_hosts
+            host.casefold() for host in allowed_source_hosts
         )
         self._allowed_licenses = frozenset(
-            self._normalize_license(license_name)
-            for license_name in allowed_licenses
+            self._normalize_license(license_name) for license_name in allowed_licenses
         )
         self._require_license = require_license
 
@@ -46,9 +40,7 @@ class ScrapingSourcePolicy:
         self,
         candidate: ScrapedImageCandidate,
     ) -> SourcePolicyDecision:
-        source_decision = self._evaluate_source_url(
-            candidate.source_page_url
-        )
+        source_decision = self._evaluate_source_url(candidate.source_page_url)
 
         if not source_decision.allowed:
             return source_decision
@@ -62,17 +54,12 @@ class ScrapingSourcePolicy:
 
             return SourcePolicyDecision(allowed=True)
 
-        normalized_license = self._normalize_license(
-            candidate.license_name
-        )
+        normalized_license = self._normalize_license(candidate.license_name)
 
         if normalized_license not in self._allowed_licenses:
             return SourcePolicyDecision(
                 allowed=False,
-                reason=(
-                    "Licence is not allowed: "
-                    f"{candidate.license_name}"
-                ),
+                reason=(f"Licence is not allowed: {candidate.license_name}"),
             )
 
         return SourcePolicyDecision(allowed=True)
@@ -98,8 +85,7 @@ class ScrapingSourcePolicy:
         hostname = parsed.hostname.casefold()
 
         allowed = any(
-            hostname == allowed_host
-            or hostname.endswith(f".{allowed_host}")
+            hostname == allowed_host or hostname.endswith(f".{allowed_host}")
             for allowed_host in self._allowed_source_hosts
         )
 
@@ -113,6 +99,4 @@ class ScrapingSourcePolicy:
 
     @staticmethod
     def _normalize_license(license_name: str) -> str:
-        return " ".join(
-            license_name.split()
-        ).casefold()
+        return " ".join(license_name.split()).casefold()

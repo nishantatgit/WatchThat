@@ -150,9 +150,7 @@ class AzureTableScraperStateStore:
         updated_at = entity["UpdatedAt"]
 
         if isinstance(discovered_at, str):
-            discovered_at = datetime.fromisoformat(
-                discovered_at
-            )
+            discovered_at = datetime.fromisoformat(discovered_at)
 
         if isinstance(updated_at, str):
             updated_at = datetime.fromisoformat(updated_at)
@@ -186,9 +184,7 @@ class AzureTableScraperStateStore:
         }
 
         if record.last_error is not None:
-            entity["LastError"] = record.last_error[
-                :4096
-            ]
+            entity["LastError"] = record.last_error[:4096]
 
         if record.storage_uri is not None:
             entity["StorageUri"] = record.storage_uri
@@ -200,6 +196,4 @@ class AzureTableScraperStateStore:
 
     @staticmethod
     def _key(source_page_url: str) -> str:
-        return sha256(
-            source_page_url.encode("utf-8")
-        ).hexdigest()
+        return sha256(source_page_url.encode("utf-8")).hexdigest()
